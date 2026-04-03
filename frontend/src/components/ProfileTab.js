@@ -120,7 +120,7 @@ export default function ProfileTab({ user, streakData, onLogout }) {
   ]
 
   const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-  const minutes = ['00', '15', '30', '45']
+  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 
   return (
     <div className="px-5 pt-6 pb-4 max-w-md lg:max-w-4xl mx-auto">

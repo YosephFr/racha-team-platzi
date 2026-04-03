@@ -3,7 +3,7 @@
 import { motion } from 'motion/react'
 import { TrendingUp, BookOpen, Clock, Trophy, ChevronRight } from 'lucide-react'
 import StreakMascot from './StreakMascot'
-import { getStreakLevel, getStreakLabel } from '@/lib/utils'
+import { getStreakLevel } from '@/lib/utils'
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -48,7 +48,10 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
           <p className="text-sm text-muted">Hola,</p>
           <h1 className="font-heading text-xl text-foreground">{user?.name || 'Estudiante'}</h1>
         </div>
-        <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center overflow-hidden border border-border lg:hidden">
+        <button
+          onClick={() => onTabChange('profile')}
+          className="w-10 h-10 rounded-full bg-surface flex items-center justify-center overflow-hidden border-2 border-accent lg:hidden"
+        >
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -56,7 +59,7 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
               {(user?.name || 'U')[0].toUpperCase()}
             </span>
           )}
-        </div>
+        </button>
       </motion.header>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
@@ -67,16 +70,6 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
             <p className="text-muted text-sm mt-1">
               {streak === 0 ? 'Sin racha activa' : streak === 1 ? 'dia de racha' : 'dias de racha'}
             </p>
-            {level > 0 && (
-              <span
-                className="inline-block mt-1.5 text-xs font-semibold"
-                style={{
-                  color: ['#9CA3AF', '#FCD34D', '#F97316', '#EA580C', '#DC2626', '#F59E0B'][level],
-                }}
-              >
-                {getStreakLabel(level)}
-              </span>
-            )}
             {streakData?.todayCompleted && (
               <span className="inline-block mt-2 px-3 py-1 bg-accent/15 text-accent-dim rounded-full text-xs font-semibold">
                 Racha del dia completada

@@ -166,14 +166,24 @@ export default function DashboardPage() {
 
           {activeTab === 'racha' && <RachaTab streakData={streakData} />}
 
-          {activeTab === 'study' && <StudyTab onComplete={handleStudyComplete} />}
+          {activeTab === 'study' && (
+            <StudyTab
+              onComplete={handleStudyComplete}
+              todayCompleted={streakData?.todayCompleted}
+            />
+          )}
 
           {activeTab === 'profile' && (
             <ProfileTab user={user} streakData={streakData} onLogout={handleLogout} />
           )}
         </main>
 
-        <BottomNav activeTab={activeTab} onTabChange={switchTab} streak={streak} />
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={switchTab}
+          streak={streak}
+          todayCompleted={streakData?.todayCompleted}
+        />
       </div>
     </div>
   )

@@ -7,12 +7,12 @@ import { cn } from '@/lib/utils'
 const tabs = [
   { id: 'home', icon: Home, label: 'Inicio' },
   { id: 'racha', icon: Flame, label: 'Racha' },
-  { id: 'study', icon: null, label: 'Estudiar' },
+  { id: 'study', icon: null, label: '' },
   { id: 'chat', icon: MessageCircle, label: 'Indi' },
   { id: 'profile', icon: User, label: 'Perfil' },
 ]
 
-export default function BottomNav({ activeTab, onTabChange, streak }) {
+export default function BottomNav({ activeTab, onTabChange, streak, todayCompleted }) {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"

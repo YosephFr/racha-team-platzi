@@ -87,9 +87,10 @@ cron.schedule('* * * * *', async () => {
   const reminders = queries.getActiveReminders()
   if (!reminders.length) return
 
+  const now = new Date()
+
   for (const reminder of reminders) {
     try {
-      const now = new Date()
       const tz = reminder.timezone || 'America/Argentina/Buenos_Aires'
       const userTime = new Date(now.toLocaleString('en-US', { timeZone: tz }))
       const currentHour = userTime.getHours()

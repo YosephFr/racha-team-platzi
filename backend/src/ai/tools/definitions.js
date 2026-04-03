@@ -61,7 +61,7 @@ const tools = [
     type: 'function',
     name: 'send_notification',
     description:
-      'Envia una notificacion al grupo de WhatsApp. Generar un mensaje creativo, divertido y diferente cada vez. Incluir emojis.',
+      'Envia una notificacion al grupo de WhatsApp. El mensaje debe ser conciso (1-2 oraciones), informativo, y puede incluir maximo 1 emoji. No uses muchos emojis ni mensajes largos. Ejemplo: "{nombre} empezo a estudiar {curso} 📚"',
     parameters: {
       type: 'object',
       properties: {

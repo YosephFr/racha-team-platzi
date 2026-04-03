@@ -25,7 +25,7 @@ function ConfettiPiece({ delay, color }) {
   )
 }
 
-export default function StudyTab({ onComplete }) {
+export default function StudyTab({ onComplete, todayCompleted }) {
   const [activeSession, setActiveSession] = useState(null)
   const [phase, setPhase] = useState('loading')
   const [preview, setPreview] = useState(null)
@@ -113,6 +113,31 @@ export default function StudyTab({ onComplete }) {
 
   const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
   const isEnd = !!activeSession
+
+  if (todayCompleted && phase !== 'result') {
+    return (
+      <div className="px-5 pt-6 pb-4 max-w-md mx-auto relative">
+        <div className="bg-mesh" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center pt-12"
+        >
+          <StreakMascot streak={30} size={80} />
+          <h2 className="font-heading text-2xl mt-4 text-gradient-fire">Listo por hoy!</h2>
+          <p className="text-muted text-sm mt-2">
+            Ya completaste tu racha de hoy. Descansa y volve manana.
+          </p>
+          <button
+            onClick={onComplete}
+            className="mt-6 px-8 py-3 rounded-2xl bg-accent/10 text-accent-dim font-semibold text-sm active:scale-[0.97] transition-transform"
+          >
+            Volver al inicio
+          </button>
+        </motion.div>
+      </div>
+    )
+  }
 
   return (
     <div className="px-5 pt-6 pb-4 max-w-md mx-auto relative">
