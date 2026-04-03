@@ -13,7 +13,6 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { api } from '@/lib/api'
-import { compressImage } from '@/lib/utils'
 import StreakMascot from './StreakMascot'
 
 function ConfettiPiece({ delay, color }) {
@@ -157,8 +156,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
     setAiMessage('')
 
     try {
-      const compressed = await compressImage(selectedFile)
-      const data = await api.submitStudy(compressed)
+      const data = await api.submitStudy(selectedFile)
 
       setAiMessage(data.message)
       setResult(data)

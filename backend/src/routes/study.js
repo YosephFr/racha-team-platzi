@@ -1,54 +1,83 @@
 import { Router } from 'express'
-import { writeFileSync } from 'fs'
+import { writeFileSync, statSync } from 'fs'
 import sharp from 'sharp'
+import exifReader from 'exif-reader'
 import { analyzeImage } from '../ai/provider.js'
 import { runStudyFlow } from '../ai/engine.js'
 import { queries } from '../db/index.js'
 
-async function extractExifMetadata(imagePath) {
+async function extractImageMetadata(imagePath) {
   try {
-    const metadata = await sharp(imagePath).metadata()
-    const exif = metadata.exif ? parseExifBuffer(metadata.exif) : {}
-    return {
-      width: metadata.width,
-      height: metadata.height,
-      format: metadata.format,
-      size: metadata.size,
-      hasAlpha: metadata.hasAlpha,
-      orientation: metadata.orientation,
-      density: metadata.density,
-      dateTime: exif.DateTime || exif.DateTimeOriginal || null,
-      make: exif.Make || null,
-      model: exif.Model || null,
-      software: exif.Software || null,
-      gpsLatitude: exif.GPSLatitude || null,
-      gpsLongitude: exif.GPSLongitude || null,
-      isScreenshot: !!(
-        metadata.hasAlpha ||
-        (exif.Software && /screenshot|snip|capture/i.test(exif.Software))
-      ),
-    }
-  } catch {
-    return {}
-  }
-}
+    const meta = await sharp(imagePath).metadata()
+    const fileStats = statSync(imagePath)
 
-function parseExifBuffer(buffer) {
-  try {
-    const str = buffer.toString('ascii')
-    const fields = {}
-    const patterns = [
-      ['DateTime', /DateTime\x00(.{19})/],
-      ['DateTimeOriginal', /DateTimeOriginal\x00(.{19})/],
-      ['Make', /Make\x00([^\x00]{2,30})/],
-      ['Model', /Model\x00([^\x00]{2,40})/],
-      ['Software', /Software\x00([^\x00]{2,40})/],
-    ]
-    for (const [key, regex] of patterns) {
-      const match = str.match(regex)
-      if (match) fields[key] = match[1].trim()
+    let exif = {}
+    if (meta.exif) {
+      try {
+        exif = exifReader(meta.exif)
+      } catch {}
     }
-    return fields
+
+    let xmpData = {}
+    if (meta.xmp) {
+      try {
+        const xmpStr = meta.xmp.toString('utf-8')
+        const descMatch = xmpStr.match(/UserComment[>"]*([^<]+)/i)
+        if (descMatch) xmpData.userComment = descMatch[1].trim()
+        const softMatch = xmpStr.match(/CreatorTool[>"]*([^<]+)/i)
+        if (softMatch) xmpData.creatorTool = softMatch[1].trim()
+      } catch {}
+    }
+
+    const imageInfo = exif.Image || {}
+    const photoInfo = exif.Photo || {}
+    const gpsInfo = exif.GPSInfo || {}
+
+    const userComment = photoInfo.UserComment
+    let userCommentText = null
+    if (userComment) {
+      if (Buffer.isBuffer(userComment) || userComment?.type === 'Buffer') {
+        const buf = Buffer.isBuffer(userComment) ? userComment : Buffer.from(userComment.data)
+        userCommentText = buf
+          .toString('ascii')
+          .replace(/[^\x20-\x7E]/g, '')
+          .trim()
+      } else if (typeof userComment === 'string') {
+        userCommentText = userComment
+      }
+    }
+
+    const isScreenshot = !!(
+      (imageInfo.ImageDescription && /screenshot/i.test(imageInfo.ImageDescription)) ||
+      (userCommentText && /screenshot/i.test(userCommentText)) ||
+      (xmpData.userComment && /screenshot/i.test(xmpData.userComment)) ||
+      meta.hasAlpha
+    )
+
+    return {
+      width: meta.width,
+      height: meta.height,
+      format: meta.format,
+      fileSize: fileStats.size,
+      hasAlpha: meta.hasAlpha,
+      colorSpace: meta.space,
+      density: meta.density,
+      orientation: meta.orientation,
+      dateTime: imageInfo.DateTime || photoInfo.DateTimeOriginal || null,
+      dateTimeOriginal: photoInfo.DateTimeOriginal || null,
+      make: imageInfo.Make || null,
+      model: imageInfo.Model || null,
+      software: imageInfo.Software || xmpData.creatorTool || null,
+      imageDescription: imageInfo.ImageDescription || null,
+      userComment: userCommentText || xmpData.userComment || null,
+      gpsLatitude: gpsInfo.GPSLatitude || null,
+      gpsLongitude: gpsInfo.GPSLongitude || null,
+      gpsAltitude: gpsInfo.GPSAltitude || null,
+      pixelWidth: photoInfo.PixelXDimension || null,
+      pixelHeight: photoInfo.PixelYDimension || null,
+      colorSpace: photoInfo.ColorSpace || null,
+      isScreenshot,
+    }
   } catch {
     return {}
   }
@@ -92,14 +121,14 @@ studyRouter.post('/submit', async (req, res) => {
       `[study/submit] Received image: ${req.file.originalname} (${(req.file.size / 1024).toFixed(0)}KB)`
     )
 
-    const exif = await extractExifMetadata(rawPath)
-    console.log('[study/submit] EXIF metadata:', JSON.stringify(exif))
+    const imageMeta = await extractImageMetadata(rawPath)
+    console.log('[study/submit] Image metadata:', JSON.stringify(imageMeta))
 
     const processedPath = await processImage(rawPath)
 
     console.log('[study/submit] Analyzing image with vision...')
     const analysis = await analyzeImage(processedPath)
-    analysis.exif = exif
+    analysis.imageMeta = imageMeta
     console.log('[study/submit] Vision analysis:', JSON.stringify(analysis))
 
     const activeSession = queries.getActiveSession(req.user.userId)
@@ -126,12 +155,18 @@ ${analysis.visualDescription || 'No disponible'}
 - Borrosa: ${analysis.isBlurry ? 'SI' : 'NO'}
 
 === METADATOS FISICOS DE LA IMAGEN ===
-- Dimensiones: ${exif.width || '?'}x${exif.height || '?'} (${exif.format || '?'})
-- Dispositivo: ${exif.make || '?'} ${exif.model || ''}
-- Software: ${exif.software || 'No disponible'}
-- Fecha/hora: ${exif.dateTime || 'No disponible'}
-- GPS: ${exif.gpsLatitude && exif.gpsLongitude ? `${exif.gpsLatitude}, ${exif.gpsLongitude}` : 'No disponible'}
-- Es screenshot: ${exif.isScreenshot ? 'Probablemente SI' : 'No determinado'}
+- Dimensiones: ${imageMeta.width || '?'}x${imageMeta.height || '?'} (${imageMeta.format || '?'})
+- Tamano archivo: ${imageMeta.fileSize ? Math.round(imageMeta.fileSize / 1024) + 'KB' : '?'}
+- Dispositivo: ${imageMeta.make || '?'} ${imageMeta.model || ''}
+- Software: ${imageMeta.software || 'No disponible'}
+- Descripcion EXIF: ${imageMeta.imageDescription || 'No disponible'}
+- Comentario EXIF: ${imageMeta.userComment || 'No disponible'}
+- Fecha/hora original: ${imageMeta.dateTimeOriginal || imageMeta.dateTime || 'No disponible'}
+- GPS: ${imageMeta.gpsLatitude && imageMeta.gpsLongitude ? `${imageMeta.gpsLatitude}, ${imageMeta.gpsLongitude}` : 'No disponible'}
+- Altitud GPS: ${imageMeta.gpsAltitude || 'No disponible'}
+- Es screenshot: ${imageMeta.isScreenshot ? 'SI (confirmado por EXIF)' : 'No determinado'}
+- Color space: ${imageMeta.colorSpace || '?'}
+- Densidad: ${imageMeta.density || '?'} DPI
 - Info adicional: ${analysis.additionalInfo || 'Ninguna'}`
 
     let userMessage
@@ -160,7 +195,7 @@ Si NO es valido, usa reject_image explicando por que.`
     const aiResult = await runStudyFlow(req.user.userId, userMessage, {
       photoPath: processedPath,
       sessionId: activeSession?.id,
-      imageMetadata: analysis,
+      imageMetadata: { ...analysis, ...imageMeta },
     })
     console.log('[study/submit] AI result:', {
       message: aiResult.message,
