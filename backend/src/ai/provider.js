@@ -114,26 +114,39 @@ export function formatToolResult(callId, result) {
   }
 }
 
-const VISION_PROMPT = `Analiza esta captura de pantalla en detalle. Determina si es de la plataforma Platzi (educacion online).
+const VISION_PROMPT = `Analiza esta imagen en detalle. Determina si muestra contenido de la plataforma Platzi (educacion online).
+
+FORMATOS VALIDOS DE PLATZI:
+- Interfaz web de Platzi (platzi.com): reproductor de video, barra lateral, lista de clases, URL visible
+- App movil de Platzi: reproductor de video con overlay oscuro, titulo de clase arriba (ej: "CLASE 6 DE 15"), nombre del curso, barra de progreso, seccion de comentarios abajo, tabs de Recursos/Comentarios/Clases
+- Reproductor de video de Platzi en desktop: titulo de la clase en la parte superior con fondo oscuro/verde, numero de clase (ej: "Clase 6 de 15 - Curso Gratis de..."), video con controles de play/pause/15s, miniatura del instructor
+- Cualquier captura que muestre contenido educativo de Platzi de forma reconocible
 
 INSTRUCCIONES:
-1. Si ves la interfaz de Platzi (logo, cursos, clases, reproductor de video, barra lateral):
-   - Lee la URL del navegador si es visible para extraer el slug del curso (platzi.com/clases/nombre-del-curso)
-   - Lee el header/titulo de la clase visible
-   - Identifica el nombre de la leccion o modulo/seccion
-   - Identifica el numero de clase si aparece (ej: "Clase 5 de 23")
-   - Lee el porcentaje o barra de progreso si es visible
-   - Extrae el total de clases del curso si aparece
-   - Nombre del profesor o instructor si es visible
-   - Duracion del video si aparece
-   - Si hay comentarios visibles o interacciones, indicar
+1. Extrae TODA la informacion visible:
+   - URL del navegador si es visible (platzi.com/clases/nombre-del-curso)
+   - Titulo de la clase (puede estar arriba del video como "CLASE X DE Y" o en un header)
+   - Nombre del curso completo
+   - Leccion, modulo o seccion
+   - Numero de clase y total (ej: "6 de 15")
+   - Porcentaje o barra de progreso
+   - Nombre del profesor/instructor (si aparece su nombre o miniatura)
+   - Duracion del video y posicion actual
    - Tipo de contenido: video, lectura, quiz, proyecto
+   - Subtitulos o texto visible en el video
+   - Comentarios visibles de otros estudiantes
 
-2. Si la imagen esta borrosa o ilegible: indica que no se puede leer bien.
+2. Si la imagen esta borrosa o ilegible: indica que no se puede leer bien pero intenta extraer lo que puedas.
 
-3. Si NO es una captura de Platzi: indica claramente que no es Platzi.
+3. Si NO es contenido de Platzi: indica claramente que no es Platzi.
 
-Responde UNICAMENTE con JSON valido:
+Responde con DOS secciones separadas por "---":
+
+PRIMERA SECCION: Descripcion visual detallada de todo lo que ves en la imagen (interfaz, colores, elementos, texto, contexto). 3-5 oraciones.
+
+---
+
+SEGUNDA SECCION: JSON valido con los datos extraidos:
 {
   "isPlatzi": true/false,
   "isBlurry": true/false,
@@ -141,13 +154,16 @@ Responde UNICAMENTE con JSON valido:
   "courseSlug": "slug de la URL (ej: curso-de-react-2025) o null",
   "lesson": "nombre de la leccion/modulo o null",
   "classTitle": "titulo exacto de la clase o null",
-  "classNumber": "numero de clase (ej: '5') o null",
-  "totalClasses": "total de clases del curso (ej: '23') o null",
+  "classNumber": "numero de clase (ej: '6') o null",
+  "totalClasses": "total de clases del curso (ej: '15') o null",
   "progress": "porcentaje de progreso (ej: '22%') o null",
   "instructor": "nombre del profesor o null",
-  "videoDuration": "duracion del video (ej: '12:34') o null",
+  "videoDuration": "duracion del video (ej: '08:32') o null",
+  "videoPosition": "posicion actual del video (ej: '00:27') o null",
   "contentType": "video/lectura/quiz/proyecto o null",
   "url": "URL completa visible en el navegador o null",
+  "subtitles": "texto de subtitulos visibles o null",
+  "platform": "web/app-movil/desktop-player o null",
   "additionalInfo": "cualquier otro dato relevante o null"
 }`
 
@@ -160,7 +176,7 @@ export async function analyzeImage(imagePath) {
 
   const response = await getClient().chat.completions.create({
     model: config.openai.visionModel,
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [
       {
         role: 'user',
@@ -174,13 +190,28 @@ export async function analyzeImage(imagePath) {
 
   const text = response.choices[0].message.content
   try {
-    const cleaned = text
+    const parts = text.split('---')
+    const visualDescription = (parts[0] || '').trim()
+    const jsonPart = (parts[1] || parts[0] || '').trim()
+    const cleaned = jsonPart
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim()
-    return JSON.parse(cleaned)
+    const jsonStart = cleaned.indexOf('{')
+    const jsonEnd = cleaned.lastIndexOf('}')
+    if (jsonStart === -1) throw new Error('No JSON found')
+    const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1))
+    parsed.visualDescription = visualDescription
+    return parsed
   } catch {
-    return { course: null, lesson: null, classNumber: null, progress: null, additionalInfo: text }
+    return {
+      course: null,
+      lesson: null,
+      classNumber: null,
+      progress: null,
+      visualDescription: text,
+      additionalInfo: text,
+    }
   }
 }
 

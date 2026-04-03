@@ -105,6 +105,35 @@ studyRouter.post('/submit', async (req, res) => {
     const activeSession = queries.getActiveSession(req.user.userId)
     const isEnd = !!activeSession
 
+    const metadataBlock = `
+=== DESCRIPCION VISUAL ===
+${analysis.visualDescription || 'No disponible'}
+
+=== DATOS EXTRAIDOS POR VISION ===
+- Curso: ${analysis.course || 'No detectado'}
+- Slug: ${analysis.courseSlug || 'No detectado'}
+- Clase: ${analysis.classTitle || 'No detectada'}
+- Numero: ${analysis.classNumber || '?'}${analysis.totalClasses ? ` de ${analysis.totalClasses}` : ''}
+- Leccion: ${analysis.lesson || 'No detectada'}
+- Progreso: ${analysis.progress || 'No detectado'}
+- Instructor: ${analysis.instructor || 'No detectado'}
+- Video: ${analysis.videoDuration || '?'} (pos: ${analysis.videoPosition || '?'})
+- Plataforma: ${analysis.platform || 'No detectada'}
+- Tipo: ${analysis.contentType || 'No detectado'}
+- URL: ${analysis.url || 'No visible'}
+- Subtitulos: ${analysis.subtitles || 'No visibles'}
+- Es Platzi: ${analysis.isPlatzi ? 'SI' : 'NO'}
+- Borrosa: ${analysis.isBlurry ? 'SI' : 'NO'}
+
+=== METADATOS FISICOS DE LA IMAGEN ===
+- Dimensiones: ${exif.width || '?'}x${exif.height || '?'} (${exif.format || '?'})
+- Dispositivo: ${exif.make || '?'} ${exif.model || ''}
+- Software: ${exif.software || 'No disponible'}
+- Fecha/hora: ${exif.dateTime || 'No disponible'}
+- GPS: ${exif.gpsLatitude && exif.gpsLongitude ? `${exif.gpsLatitude}, ${exif.gpsLongitude}` : 'No disponible'}
+- Es screenshot: ${exif.isScreenshot ? 'Probablemente SI' : 'No determinado'}
+- Info adicional: ${analysis.additionalInfo || 'Ninguna'}`
+
     let userMessage
     if (isEnd) {
       userMessage = `El usuario quiere COMPLETAR su sesion de estudio. Tiene una sesion activa que inicio con:
@@ -112,25 +141,19 @@ studyRouter.post('/submit', async (req, res) => {
 - Leccion inicial: ${activeSession.start_lesson || 'Desconocida'}
 - Clase inicial: ${activeSession.start_class_number || 'Desconocida'}
 
-Ahora subio una foto que muestra:
-- Curso: ${analysis.course || 'No detectado'}
-- Leccion: ${analysis.lesson || 'No detectada'}
-- Clase: ${analysis.classNumber || 'No detectada'}
-- Progreso: ${analysis.progress || 'No detectado'}
-- Info adicional: ${analysis.additionalInfo || 'Ninguna'}
+Ahora subio esta foto:
+${metadataBlock}
 
-Si es una captura valida de Platzi y se ve avance, usa validate_study con isValid=true, luego complete_streak, luego send_notification celebrando.
-Si NO es una captura valida de Platzi, usa reject_image explicando por que.`
+DECISION: Usa los metadatos Y la descripcion visual para decidir. Los metadatos (dispositivo, fecha, software) son MAS confiables que la vision para validar autenticidad. Si los metadatos confirman que es un screenshot reciente desde un dispositivo real, eso refuerza la validez aunque la imagen no sea perfecta. Si la fecha del EXIF es antigua o no coincide, eso es sospechoso.
+Si es valido, usa validate_study con isValid=true, luego complete_streak, luego send_notification celebrando.
+Si NO es valido, usa reject_image explicando por que.`
     } else {
-      userMessage = `El usuario quiere INICIAR una sesion de estudio. Subio una foto que muestra:
-- Curso: ${analysis.course || 'No detectado'}
-- Leccion: ${analysis.lesson || 'No detectada'}
-- Clase: ${analysis.classNumber || 'No detectada'}
-- Progreso: ${analysis.progress || 'No detectado'}
-- Info adicional: ${analysis.additionalInfo || 'Ninguna'}
+      userMessage = `El usuario quiere INICIAR una sesion de estudio. Subio esta foto:
+${metadataBlock}
 
-Si es una captura valida de Platzi, usa start_study con los datos del curso, luego send_notification avisando al grupo.
-Si NO es una captura valida de Platzi, usa reject_image explicando por que.`
+DECISION: Usa los metadatos Y la descripcion visual para decidir. Acepta capturas de la web de Platzi, la app movil de Platzi (reproductor con fondo oscuro, "CLASE X DE Y" arriba), y el reproductor desktop. Los metadatos (dispositivo, fecha, screenshot) refuerzan la validez. Si la imagen muestra contenido de Platzi de cualquier forma reconocible, apruebalo.
+Si es una captura valida de Platzi, usa start_study con TODOS los datos disponibles del curso, luego send_notification avisando al grupo.
+Si NO es valido, usa reject_image explicando por que.`
     }
 
     console.log('[study/submit] Running AI flow...')
