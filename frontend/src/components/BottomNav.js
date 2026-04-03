@@ -15,7 +15,7 @@ const tabs = [
 export default function BottomNav({ activeTab, onTabChange, streak }) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50"
+      className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="mx-auto max-w-md px-4 pb-3">
@@ -51,9 +51,6 @@ export default function BottomNav({ activeTab, onTabChange, streak }) {
                     strokeWidth={isActive ? 2.25 : 1.75}
                     className="transition-all duration-200"
                   />
-                  {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full bg-accent" />
-                  )}
                 </div>
                 <span
                   className={cn(

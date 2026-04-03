@@ -39,7 +39,7 @@ function LoginContent() {
         <div className="absolute bottom-[-5%] right-1/4 w-[260px] h-[260px] rounded-full bg-violet/[0.04] blur-[80px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-sm flex flex-col items-center lg:bg-card lg:p-10 lg:rounded-3xl lg:shadow-elevated lg:border lg:border-border">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}

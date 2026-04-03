@@ -106,50 +106,60 @@ export default function ProfileTab({ user, streakData, onLogout }) {
   const minutes = ['00', '15', '30', '45']
 
   return (
-    <div className="px-5 pt-6 pb-4 max-w-md mx-auto">
+    <div className="px-5 pt-6 pb-4 max-w-md lg:max-w-4xl mx-auto">
       <div className="bg-mesh" />
 
       <motion.h1 {...fadeUp} className="font-heading text-xl mb-5">
         Perfil
       </motion.h1>
 
-      <motion.section
-        {...fadeUp}
-        transition={{ delay: 0.04 }}
-        className="card-base p-5 mb-5 text-center"
-      >
-        <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mx-auto mb-3 border-2 border-border overflow-hidden">
-          {user?.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <User size={32} className="text-muted" />
-          )}
-        </div>
-        <h2 className="font-heading text-lg">{user?.name || 'Usuario'}</h2>
-        <div className="flex items-center justify-center gap-1.5 mt-1">
-          <Mail size={13} className="text-muted" />
-          <span className="text-sm text-muted">{user?.email || ''}</span>
-        </div>
-        <div
-          className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-surface text-xs font-semibold"
-          style={{ color: LEVEL_COLORS[level] }}
-        >
-          <Flame size={12} />
-          {getStreakLabel(level)}
-        </div>
-      </motion.section>
-
-      <motion.div {...fadeUp} transition={{ delay: 0.08 }} className="grid grid-cols-2 gap-3 mb-5">
-        {profileStats.map((stat) => (
-          <div key={stat.label} className="card-base p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <stat.icon size={16} className={stat.color} />
-              <span className="text-xs text-muted">{stat.label}</span>
+      <div className="lg:grid lg:grid-cols-[1fr_1fr] lg:gap-6 lg:items-start">
+        <div>
+          <motion.section
+            {...fadeUp}
+            transition={{ delay: 0.04 }}
+            className="card-base p-5 mb-5 lg:mb-0 text-center"
+          >
+            <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mx-auto mb-3 border-2 border-border overflow-hidden">
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <User size={32} className="text-muted" />
+              )}
             </div>
-            <p className="font-heading text-2xl text-foreground">{stat.value}</p>
-          </div>
-        ))}
-      </motion.div>
+            <h2 className="font-heading text-lg">{user?.name || 'Usuario'}</h2>
+            <div className="flex items-center justify-center gap-1.5 mt-1">
+              <Mail size={13} className="text-muted" />
+              <span className="text-sm text-muted">{user?.email || ''}</span>
+            </div>
+            <div
+              className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-surface text-xs font-semibold"
+              style={{ color: LEVEL_COLORS[level] }}
+            >
+              <Flame size={12} />
+              {getStreakLabel(level)}
+            </div>
+          </motion.section>
+        </div>
+
+        <div>
+          <motion.div
+            {...fadeUp}
+            transition={{ delay: 0.08 }}
+            className="grid grid-cols-2 gap-3 mb-5 lg:mb-0"
+          >
+            {profileStats.map((stat) => (
+              <div key={stat.label} className="card-base p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <stat.icon size={16} className={stat.color} />
+                  <span className="text-xs text-muted">{stat.label}</span>
+                </div>
+                <p className="font-heading text-2xl text-foreground">{stat.value}</p>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
 
       <motion.section {...fadeUp} transition={{ delay: 0.12 }} className="card-base p-4 mb-5">
         <div className="flex items-center gap-2 mb-4">
