@@ -1,0 +1,7 @@
+node_modules
+.next
+out
+dist
+backend/data
+frontend/public/sw.js
+*.db

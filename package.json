@@ -1,0 +1,21 @@
+{
+  "name": "racha-team-platzi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:frontend & npm run dev:backend",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "npm run start:frontend & npm run start:backend",
+    "start:frontend": "cd frontend && npm run start",
+    "start:backend": "cd backend && npm run start",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "lint": "cd frontend && npm run lint && cd ../backend && npm run lint",
+    "format": "prettier --write '**/*.{js,jsx,css,json,md}' --ignore-path .prettierignore",
+    "format:check": "prettier --check '**/*.{js,jsx,css,json,md}' --ignore-path .prettierignore"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}

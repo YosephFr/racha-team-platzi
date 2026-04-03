@@ -1,0 +1,323 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
+import { Camera, Image, Upload, Sparkles, CheckCircle, XCircle } from 'lucide-react'
+import { api } from '@/lib/api'
+import { compressImage } from '@/lib/utils'
+import StreakMascot from './StreakMascot'
+
+function ConfettiPiece({ delay, color }) {
+  const left = Math.random() * 100
+  const dur = 1.5 + Math.random() * 1.5
+  return (
+    <div
+      className="absolute top-0"
+      style={{
+        left: `${left}%`,
+        width: 6 + Math.random() * 4,
+        height: 6 + Math.random() * 4,
+        background: color,
+        borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+        animation: `confetti-fall ${dur}s ease-in ${delay}s forwards`,
+      }}
+    />
+  )
+}
+
+export default function StudyTab({ onComplete }) {
+  const [activeSession, setActiveSession] = useState(null)
+  const [phase, setPhase] = useState('loading')
+  const [preview, setPreview] = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [processing, setProcessing] = useState(false)
+  const [result, setResult] = useState(null)
+  const [aiMessage, setAiMessage] = useState('')
+  const [showConfetti, setShowConfetti] = useState(false)
+  const fileRef = useRef(null)
+  const galleryRef = useRef(null)
+
+  useEffect(() => {
+    api
+      .getActiveSession()
+      .then((d) => {
+        if (d.session) {
+          setActiveSession(d.session)
+          setPhase('capture')
+        } else {
+          setPhase('capture')
+        }
+      })
+      .catch(() => setPhase('capture'))
+  }, [])
+
+  function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSelectedFile(file)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  function clearPreview() {
+    setPreview(null)
+    setSelectedFile(null)
+    if (fileRef.current) fileRef.current.value = ''
+    if (galleryRef.current) galleryRef.current.value = ''
+  }
+
+  const handleSubmit = useCallback(async () => {
+    if (!selectedFile || processing) return
+    setProcessing(true)
+    setAiMessage('')
+
+    try {
+      const compressed = await compressImage(selectedFile)
+      const data = await api.submitStudy(compressed)
+
+      setAiMessage(data.message)
+      setResult(data)
+
+      if (data.action === 'started') {
+        setActiveSession(data.session)
+        setPhase('result')
+      } else if (data.action === 'completed') {
+        setPhase('result')
+        if (data.validated) {
+          setShowConfetti(true)
+          setTimeout(() => setShowConfetti(false), 3000)
+        }
+      } else if (data.action === 'rejected') {
+        setPhase('result')
+      } else {
+        setPhase('result')
+      }
+    } catch (err) {
+      setAiMessage(err.message || 'Error al procesar la foto')
+      setPhase('result')
+      setResult({ action: 'error' })
+    } finally {
+      setProcessing(false)
+    }
+  }, [selectedFile, processing])
+
+  const handleDone = useCallback(() => {
+    if (onComplete) onComplete()
+  }, [onComplete])
+
+  const handleRetry = useCallback(() => {
+    setPhase('capture')
+    setResult(null)
+    setAiMessage('')
+    clearPreview()
+  }, [])
+
+  const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
+  const isEnd = !!activeSession
+
+  return (
+    <div className="px-5 pt-6 pb-4 max-w-md mx-auto relative">
+      <div className="bg-mesh" />
+
+      {showConfetti && (
+        <div className="fixed inset-0 z-[70] pointer-events-none overflow-hidden">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <ConfettiPiece
+              key={i}
+              delay={Math.random() * 0.5}
+              color={confettiColors[i % confettiColors.length]}
+            />
+          ))}
+        </div>
+      )}
+
+      <motion.h1
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="font-heading text-xl mb-5"
+      >
+        {phase === 'loading' ? 'Cargando...' : isEnd ? 'Completar sesion' : 'Iniciar estudio'}
+      </motion.h1>
+
+      <AnimatePresence mode="wait">
+        {phase === 'loading' && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="card-base p-8 text-center"
+          >
+            <div className="flex gap-1.5 justify-center">
+              <div className="w-2 h-2 rounded-full bg-accent typing-dot" />
+              <div className="w-2 h-2 rounded-full bg-accent typing-dot" />
+              <div className="w-2 h-2 rounded-full bg-accent typing-dot" />
+            </div>
+          </motion.div>
+        )}
+
+        {phase === 'capture' && !processing && (
+          <motion.div
+            key="capture"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+          >
+            <div className="card-base p-5 text-center mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                {isEnd ? (
+                  <CheckCircle size={24} className="text-accent-dim" />
+                ) : (
+                  <Sparkles size={24} className="text-accent-dim" />
+                )}
+              </div>
+              <h2 className="font-heading text-lg mb-1.5">
+                {isEnd ? 'Mostra tu avance' : 'Captura de Platzi'}
+              </h2>
+              <p className="text-sm text-muted leading-relaxed">
+                {isEnd
+                  ? `Subi una captura mostrando hasta donde llegaste en ${activeSession?.start_course || 'tu curso'}`
+                  : 'Subi una captura de pantalla de Platzi mostrando el curso que vas a estudiar'}
+              </p>
+            </div>
+
+            {!preview ? (
+              <div className="flex gap-3">
+                <label className="flex-1 flex flex-col items-center gap-2.5 py-7 rounded-2xl bg-card border border-border border-dashed cursor-pointer hover:border-accent/40 transition-colors active:scale-[0.97]">
+                  <Camera size={24} className="text-accent-dim" />
+                  <span className="text-xs font-medium text-muted">Camara</span>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFile}
+                    className="hidden"
+                  />
+                </label>
+                <label className="flex-1 flex flex-col items-center gap-2.5 py-7 rounded-2xl bg-card border border-border border-dashed cursor-pointer hover:border-accent/40 transition-colors active:scale-[0.97]">
+                  <Image size={24} className="text-violet" />
+                  <span className="text-xs font-medium text-muted">Galeria</span>
+                  <input
+                    ref={galleryRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFile}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            ) : (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                <div className="relative rounded-2xl overflow-hidden border border-border mb-3">
+                  <img
+                    src={preview}
+                    alt="Vista previa"
+                    className="w-full h-auto max-h-[260px] object-cover"
+                  />
+                </div>
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={clearPreview}
+                    className="w-12 h-12 rounded-2xl bg-surface flex items-center justify-center text-muted hover:text-danger transition-colors active:scale-90 shrink-0"
+                  >
+                    <XCircle size={20} />
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    className="flex-1 h-12 rounded-2xl bg-accent text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+                  >
+                    <Upload size={16} />
+                    {isEnd ? 'Completar sesion' : 'Iniciar estudio'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {processing && (
+          <motion.div
+            key="processing"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className="card-base p-8 text-center"
+          >
+            <div className="w-14 h-14 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto mb-4" />
+            <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
+            <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+          </motion.div>
+        )}
+
+        {phase === 'result' && (
+          <motion.div
+            key="result"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 20 }}
+          >
+            <div className="card-base p-6 text-center mb-4">
+              {result?.action === 'completed' && result?.validated ? (
+                <>
+                  <StreakMascot streak={30} size={72} />
+                  <h2 className="font-heading text-xl mt-3 text-gradient-fire">
+                    Racha completada!
+                  </h2>
+                </>
+              ) : result?.action === 'started' ? (
+                <>
+                  <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle size={28} className="text-accent-dim" />
+                  </div>
+                  <h2 className="font-heading text-lg">Sesion iniciada!</h2>
+                  <p className="text-sm text-muted mt-1">
+                    A estudiar. Cuando termines, volve a subir una foto.
+                  </p>
+                </>
+              ) : result?.action === 'rejected' ? (
+                <>
+                  <div className="w-14 h-14 rounded-2xl bg-danger/10 flex items-center justify-center mx-auto mb-3">
+                    <XCircle size={28} className="text-danger" />
+                  </div>
+                  <h2 className="font-heading text-lg">Foto no valida</h2>
+                </>
+              ) : (
+                <>
+                  <div className="w-14 h-14 rounded-2xl bg-surface flex items-center justify-center mx-auto mb-3">
+                    <Sparkles size={28} className="text-muted" />
+                  </div>
+                  <h2 className="font-heading text-lg">Resultado</h2>
+                </>
+              )}
+            </div>
+
+            {aiMessage && (
+              <div className="bg-surface rounded-2xl p-4 mb-4 border-l-2 border-accent">
+                <div className="flex items-start gap-2.5">
+                  <Sparkles size={16} className="text-accent-dim shrink-0 mt-0.5" />
+                  <p className="text-sm text-foreground leading-relaxed">{aiMessage}</p>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleDone}
+              className="w-full py-4 rounded-2xl bg-accent text-white font-semibold glow-accent active:scale-[0.97] transition-transform"
+            >
+              {result?.action === 'started' ? 'Entendido' : 'Volver al inicio'}
+            </button>
+
+            {(result?.action === 'rejected' || result?.action === 'error') && (
+              <button
+                onClick={handleRetry}
+                className="w-full py-3 mt-2 rounded-2xl text-sm text-muted hover:text-foreground transition-colors"
+              >
+                Intentar con otra foto
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
