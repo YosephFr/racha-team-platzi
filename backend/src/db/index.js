@@ -16,6 +16,10 @@ db.pragma('foreign_keys = ON')
 const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf-8')
 db.exec(schema)
 
+try {
+  db.exec("ALTER TABLE reminders ADD COLUMN country TEXT NOT NULL DEFAULT 'AR'")
+} catch (_) {}
+
 export const queries = {
   upsertUser(email, name, avatarUrl) {
     return db
@@ -247,17 +251,17 @@ export const queries = {
       )
   },
 
-  createReminder(userId, phoneNumber, hour, minute, timezone) {
+  createReminder(userId, phoneNumber, hour, minute, country, timezone) {
     db.prepare('DELETE FROM reminders WHERE user_id = ?').run(userId)
     return db
       .prepare(
         `
-      INSERT INTO reminders (user_id, phone_number, hour, minute, timezone)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO reminders (user_id, phone_number, hour, minute, country, timezone)
+      VALUES (?, ?, ?, ?, ?, ?)
       RETURNING *
     `
       )
-      .get(userId, phoneNumber, hour, minute, timezone)
+      .get(userId, phoneNumber, hour, minute, country, timezone)
   },
 
   getReminder(userId) {

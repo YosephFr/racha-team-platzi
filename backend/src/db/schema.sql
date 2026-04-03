@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   phone_number TEXT NOT NULL,
   hour INTEGER NOT NULL,
   minute INTEGER NOT NULL,
+  country TEXT NOT NULL DEFAULT 'AR',
   timezone TEXT NOT NULL DEFAULT 'America/Argentina/Buenos_Aires',
   active INTEGER DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now'))

@@ -1,5 +1,5 @@
 import { queries } from '../../db/index.js'
-import { calculateStreak, getStreakInfo } from '../../services/streak.js'
+import { calculateStreak, getStreakInfo, getEffectiveDate } from '../../services/streak.js'
 import { notifyGroup } from '../../whatsapp/notify.js'
 
 export async function handleToolCall(name, args, context) {
@@ -57,12 +57,12 @@ export async function handleToolCall(name, args, context) {
     }
 
     case 'complete_streak': {
-      const today = new Date().toISOString().split('T')[0]
+      const effectiveDate = getEffectiveDate()
       const active = queries.getActiveSession(userId)
-      queries.markStreak(userId, today, active?.id || sessionId)
+      queries.markStreak(userId, effectiveDate, active?.id || sessionId)
       const streak = calculateStreak(userId)
-      console.log(`[tool] complete_streak: User ${userId} streak=${streak} date=${today}`)
-      return { ok: true, date: today, currentStreak: streak }
+      console.log(`[tool] complete_streak: User ${userId} streak=${streak} date=${effectiveDate}`)
+      return { ok: true, date: effectiveDate, currentStreak: streak }
     }
 
     case 'get_streak_info': {

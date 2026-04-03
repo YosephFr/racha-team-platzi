@@ -137,10 +137,10 @@ export const api = {
     return request('/api/reminders')
   },
 
-  saveReminder(phoneNumber, hour, minute, timezone) {
+  saveReminder(phoneNumber, hour, minute, country) {
     return request('/api/reminders', {
       method: 'POST',
-      body: JSON.stringify({ phoneNumber, hour, minute, timezone }),
+      body: JSON.stringify({ phoneNumber, hour, minute, country }),
     })
   },
 

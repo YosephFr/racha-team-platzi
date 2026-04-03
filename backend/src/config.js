@@ -52,10 +52,20 @@ export const config = {
     requiredDays: parseDays(process.env.STREAK_REQUIRED_DAYS, [1, 2, 3, 4, 5]),
     optionalDays: parseDays(process.env.STREAK_OPTIONAL_DAYS, [6, 0]),
     excludedDates: parseDates(process.env.STREAK_EXCLUDED_DATES),
+    resetHour: Number(process.env.STREAK_RESET_HOUR) || 4,
+    timezone: process.env.STREAK_TIMEZONE || 'America/Argentina/Buenos_Aires',
   },
   whatsapp: {
     targets: parseTargets(process.env.WA_NOTIFY_TARGETS),
     sessionPath: process.env.WA_SESSION_PATH || './data/.wwebjs_auth',
     cachePath: process.env.WA_CACHE_PATH || './data/.wwebjs_cache',
+    primaryPhone: process.env.WA_PRIMARY_PHONE || '',
+    logMessages: process.env.WA_LOG_MESSAGES !== 'false',
   },
+}
+
+export const COUNTRY_TIMEZONES = {
+  AR: 'America/Argentina/Buenos_Aires',
+  CO: 'America/Bogota',
+  PE: 'America/Lima',
 }

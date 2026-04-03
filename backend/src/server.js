@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 import multer from 'multer'
 import { mkdirSync } from 'fs'
 import { config } from './config.js'
-import { initWhatsApp, getStatus } from './whatsapp/session-manager.js'
+import { initWhatsApp, shutdownWhatsApp, getStatus } from './whatsapp/session-manager.js'
 import { authRouter } from './routes/auth.js'
 import { studyRouter } from './routes/study.js'
 import { streaksRouter } from './routes/streaks.js'
@@ -12,6 +12,7 @@ import { whatsappRouter } from './routes/whatsapp.js'
 import { chatRouter } from './routes/chat.js'
 import { ttsRouter } from './routes/tts.js'
 import { remindersRouter } from './routes/reminders.js'
+import { db } from './db/index.js'
 
 const app = express()
 
@@ -78,6 +79,38 @@ app.use('/api/chat', audioUpload.single('audio'), chatRouter)
 app.use((_req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' })
 })
+
+let isShuttingDown = false
+
+async function shutdown(signal) {
+  if (isShuttingDown) return
+  isShuttingDown = true
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('[shutdown] Force exit after 25s backstop')
+    process.exit(1)
+  }, 25000)
+  forceExitTimer.unref()
+
+  console.log(`[shutdown] ${signal} received, shutting down...`)
+
+  try {
+    await Promise.race([shutdownWhatsApp(), new Promise((r) => setTimeout(r, 20000))])
+  } catch (err) {
+    console.warn('[shutdown] WhatsApp shutdown error:', err.message)
+  }
+
+  try {
+    db.close()
+    console.log('[shutdown] Database closed')
+  } catch {}
+
+  console.log('[shutdown] Complete')
+  process.exit(0)
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
 
 app.listen(config.port, () => {
   console.log(`[server] Backend running on port ${config.port}`)

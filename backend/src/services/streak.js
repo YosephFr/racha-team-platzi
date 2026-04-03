@@ -1,6 +1,15 @@
 import { config } from '../config.js'
 import { queries } from '../db/index.js'
 
+function getEffectiveToday() {
+  const now = new Date()
+  const localTime = new Date(now.toLocaleString('en-US', { timeZone: config.streak.timezone }))
+  if (localTime.getHours() < config.streak.resetHour) {
+    localTime.setDate(localTime.getDate() - 1)
+  }
+  return formatDate(localTime)
+}
+
 function getDayOfWeek(dateStr) {
   return new Date(dateStr + 'T12:00:00').getDay()
 }
@@ -32,7 +41,7 @@ function addDays(dateStr, n) {
 }
 
 export function calculateStreak(userId) {
-  const today = formatDate(new Date())
+  const today = getEffectiveToday()
   let currentStreak = 0
   let checkDate = today
 
@@ -80,7 +89,7 @@ export function calculateStreak(userId) {
 }
 
 export function getStreakInfo(userId) {
-  const today = formatDate(new Date())
+  const today = getEffectiveToday()
   const thirtyDaysAgo = addDays(today, -30)
   const streakDays = queries.getStreakDays(userId, thirtyDaysAgo, today)
   const currentStreak = calculateStreak(userId)
@@ -97,4 +106,8 @@ export function getStreakInfo(userId) {
     todayExcluded,
     calendar: streakDays.map((s) => ({ date: s.date, completed: !!s.completed })),
   }
+}
+
+export function getEffectiveDate() {
+  return getEffectiveToday()
 }

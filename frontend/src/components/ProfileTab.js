@@ -15,6 +15,7 @@ import {
   Phone,
   Trash2,
   Check,
+  Globe,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { getStreakLevel, getStreakLabel } from '@/lib/utils'
@@ -26,8 +27,15 @@ const fadeUp = {
 
 const LEVEL_COLORS = ['#9CA3AF', '#FCD34D', '#F97316', '#EA580C', '#DC2626', '#F59E0B']
 
+const COUNTRIES = [
+  { code: 'AR', label: 'Argentina', prefix: '+54' },
+  { code: 'CO', label: 'Colombia', prefix: '+57' },
+  { code: 'PE', label: 'Peru', prefix: '+51' },
+]
+
 export default function ProfileTab({ user, streakData, onLogout }) {
   const [reminder, setReminder] = useState(null)
+  const [country, setCountry] = useState('AR')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [reminderHour, setReminderHour] = useState('09')
   const [reminderMinute, setReminderMinute] = useState('00')
@@ -44,6 +52,7 @@ export default function ProfileTab({ user, streakData, onLogout }) {
         if (d.reminder) {
           setReminder(d.reminder)
           setPhoneNumber(d.reminder.phone_number)
+          setCountry(d.reminder.country || 'AR')
           setReminderHour(String(d.reminder.hour).padStart(2, '0'))
           setReminderMinute(String(d.reminder.minute).padStart(2, '0'))
         }
@@ -56,7 +65,12 @@ export default function ProfileTab({ user, streakData, onLogout }) {
     setSavingReminder(true)
     setReminderSaved(false)
     try {
-      const data = await api.saveReminder(phoneNumber, Number(reminderHour), Number(reminderMinute))
+      const data = await api.saveReminder(
+        phoneNumber,
+        Number(reminderHour),
+        Number(reminderMinute),
+        country
+      )
       setReminder(data.reminder)
       setReminderSaved(true)
       setTimeout(() => setReminderSaved(false), 2000)
@@ -73,12 +87,15 @@ export default function ProfileTab({ user, streakData, onLogout }) {
       await api.deleteReminder(reminder.id)
       setReminder(null)
       setPhoneNumber('')
+      setCountry('AR')
       setReminderHour('09')
       setReminderMinute('00')
     } catch (err) {
       console.error('Error deleting reminder:', err)
     }
   }
+
+  const selectedCountry = COUNTRIES.find((c) => c.code === country) || COUNTRIES[0]
 
   const profileStats = [
     { label: 'Racha actual', value: streak, icon: Flame, color: 'text-accent-dim' },
@@ -164,22 +181,49 @@ export default function ProfileTab({ user, streakData, onLogout }) {
       <motion.section {...fadeUp} transition={{ delay: 0.12 }} className="card-base p-4 mb-5">
         <div className="flex items-center gap-2 mb-4">
           <Bell size={16} className="text-accent-dim" />
-          <h3 className="font-heading text-sm text-foreground">Recordatorio diario</h3>
+          <h3 className="font-heading text-sm text-foreground">Recordatorio diario por WhatsApp</h3>
         </div>
 
+        <p className="text-xs text-muted mb-4">
+          Recibiras un recordatorio por WhatsApp a la hora local que elijas.
+        </p>
+
         <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted mb-1.5 block flex items-center gap-1.5">
+              <Globe size={12} />
+              Pais
+            </label>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-sm text-foreground focus:outline-none focus:border-accent/50 transition-colors appearance-none"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label} ({c.prefix})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="text-xs text-muted mb-1.5 block flex items-center gap-1.5">
               <Phone size={12} />
               Numero de WhatsApp
             </label>
-            <input
-              type="tel"
-              placeholder="+54 9 11 1234-5678"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
-            />
+            <div className="flex gap-2">
+              <span className="px-3 py-2.5 rounded-xl bg-surface border border-border text-sm text-muted shrink-0">
+                {selectedCountry.prefix}
+              </span>
+              <input
+                type="tel"
+                placeholder="9 11 1234-5678"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-surface border border-border text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+              />
+            </div>
           </div>
 
           <div>
@@ -261,7 +305,7 @@ export default function ProfileTab({ user, streakData, onLogout }) {
         transition={{ delay: 0.2 }}
         className="text-center text-[10px] text-muted/50 mt-6"
       >
-        Racha Team Platzi v0.4.0
+        Racha Team Platzi v0.5.0
       </motion.p>
     </div>
   )
