@@ -51,8 +51,11 @@ export default function ProfileTab({ user, streakData, onLogout }) {
       .then((d) => {
         if (d.reminder) {
           setReminder(d.reminder)
-          setPhoneNumber(d.reminder.phone_number)
-          setCountry(d.reminder.country || 'AR')
+          const c = d.reminder.country || 'AR'
+          const pref = COUNTRIES.find((x) => x.code === c)?.prefix.replace('+', '') || ''
+          const num = d.reminder.phone_number || ''
+          setPhoneNumber(num.startsWith(pref) ? num.slice(pref.length) : num)
+          setCountry(c)
           setReminderHour(String(d.reminder.hour).padStart(2, '0'))
           setReminderMinute(String(d.reminder.minute).padStart(2, '0'))
         }
@@ -65,8 +68,11 @@ export default function ProfileTab({ user, streakData, onLogout }) {
     setSavingReminder(true)
     setReminderSaved(false)
     try {
+      const digits = phoneNumber.replace(/[^0-9]/g, '')
+      const prefix = selectedCountry.prefix.replace('+', '')
+      const fullNumber = digits.startsWith(prefix) ? digits : prefix + digits
       const data = await api.saveReminder(
-        phoneNumber,
+        fullNumber,
         Number(reminderHour),
         Number(reminderMinute),
         country
