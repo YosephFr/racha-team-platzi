@@ -285,3 +285,15 @@
     transform: rotate(-1.5deg) translateY(-1px);
   }
 }
+
+@keyframes scanner-line {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 95%;
+  }
+  100% {
+    top: 0%;
+  }
+}

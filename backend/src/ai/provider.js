@@ -118,11 +118,16 @@ const VISION_PROMPT = `Analiza esta captura de pantalla en detalle. Determina si
 
 INSTRUCCIONES:
 1. Si ves la interfaz de Platzi (logo, cursos, clases, reproductor de video, barra lateral):
-   - Lee la URL del navegador si es visible para extraer el nombre del curso (platzi.com/clases/nombre-del-curso)
+   - Lee la URL del navegador si es visible para extraer el slug del curso (platzi.com/clases/nombre-del-curso)
    - Lee el header/titulo de la clase visible
-   - Identifica el numero de clase o modulo si aparece
-   - Lee el porcentaje de progreso si es visible
-   - Nota cualquier otra informacion relevante (profesor, duracion, comentarios)
+   - Identifica el nombre de la leccion o modulo/seccion
+   - Identifica el numero de clase si aparece (ej: "Clase 5 de 23")
+   - Lee el porcentaje o barra de progreso si es visible
+   - Extrae el total de clases del curso si aparece
+   - Nombre del profesor o instructor si es visible
+   - Duracion del video si aparece
+   - Si hay comentarios visibles o interacciones, indicar
+   - Tipo de contenido: video, lectura, quiz, proyecto
 
 2. Si la imagen esta borrosa o ilegible: indica que no se puede leer bien.
 
@@ -132,11 +137,17 @@ Responde UNICAMENTE con JSON valido:
 {
   "isPlatzi": true/false,
   "isBlurry": true/false,
-  "course": "nombre del curso o null",
+  "course": "nombre completo del curso o null",
+  "courseSlug": "slug de la URL (ej: curso-de-react-2025) o null",
   "lesson": "nombre de la leccion/modulo o null",
-  "classNumber": "numero de clase o null",
-  "progress": "porcentaje de progreso o null",
-  "url": "URL visible en el navegador o null",
+  "classTitle": "titulo exacto de la clase o null",
+  "classNumber": "numero de clase (ej: '5') o null",
+  "totalClasses": "total de clases del curso (ej: '23') o null",
+  "progress": "porcentaje de progreso (ej: '22%') o null",
+  "instructor": "nombre del profesor o null",
+  "videoDuration": "duracion del video (ej: '12:34') o null",
+  "contentType": "video/lectura/quiz/proyecto o null",
+  "url": "URL completa visible en el navegador o null",
   "additionalInfo": "cualquier otro dato relevante o null"
 }`
 

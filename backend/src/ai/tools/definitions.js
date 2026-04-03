@@ -7,9 +7,15 @@ const tools = [
     parameters: {
       type: 'object',
       properties: {
-        course: { type: 'string', description: 'Nombre del curso detectado en la captura' },
-        lesson: { type: 'string', description: 'Leccion o modulo actual' },
-        classNumber: { type: 'string', description: 'Numero de clase' },
+        course: { type: 'string', description: 'Nombre completo del curso' },
+        courseSlug: { type: 'string', description: 'Slug del curso de la URL' },
+        lesson: { type: 'string', description: 'Leccion o modulo/seccion actual' },
+        classTitle: { type: 'string', description: 'Titulo exacto de la clase' },
+        classNumber: { type: 'string', description: 'Numero de clase (ej: "5")' },
+        totalClasses: { type: 'string', description: 'Total de clases del curso' },
+        progress: { type: 'string', description: 'Porcentaje de progreso' },
+        instructor: { type: 'string', description: 'Nombre del instructor' },
+        contentType: { type: 'string', description: 'Tipo: video, lectura, quiz, proyecto' },
       },
       required: ['course'],
     },
@@ -77,6 +83,23 @@ const tools = [
     parameters: {
       type: 'object',
       properties: {},
+    },
+  },
+  {
+    type: 'function',
+    name: 'send_private_notification',
+    description:
+      'Envia un mensaje privado de WhatsApp a un usuario especifico. Usar para recordatorios personalizados. El mensaje debe ser conciso (1-2 oraciones), amigable y maximo 1 emoji.',
+    parameters: {
+      type: 'object',
+      properties: {
+        phoneNumber: {
+          type: 'string',
+          description: 'Numero de telefono del destinatario (solo digitos, con codigo de pais)',
+        },
+        message: { type: 'string', description: 'Mensaje conciso y amigable para el usuario' },
+      },
+      required: ['phoneNumber', 'message'],
     },
   },
   {

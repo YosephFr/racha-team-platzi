@@ -1,6 +1,7 @@
 import { queries } from '../../db/index.js'
 import { calculateStreak, getStreakInfo, getEffectiveDate } from '../../services/streak.js'
 import { notifyGroup } from '../../whatsapp/notify.js'
+import { sendMessage, isReady } from '../../whatsapp/session-manager.js'
 
 export async function handleToolCall(name, args, context) {
   const { userId, sessionId } = context
@@ -13,11 +14,21 @@ export async function handleToolCall(name, args, context) {
         console.log(`[tool] start_study: User ${userId} already has active session ${session.id}`)
         return { ok: true, sessionId: session.id, message: 'Ya tienes una sesion activa' }
       }
-      const newSession = queries.createSession(userId, context.photoPath, {
+      const meta = {
         course: args.course,
         lesson: args.lesson,
         classNumber: args.classNumber,
-      })
+        classTitle: args.classTitle,
+        courseSlug: args.courseSlug,
+        instructor: args.instructor,
+        progress: args.progress,
+        totalClasses: args.totalClasses,
+        contentType: args.contentType,
+      }
+      const newSession = queries.createSession(userId, context.photoPath, meta)
+      if (context.imageMetadata) {
+        queries.updateSessionMetadata(newSession.id, context.imageMetadata)
+      }
       console.log(`[tool] start_study: Created session ${newSession.id} for user ${userId}`)
       return { ok: true, sessionId: newSession.id, course: args.course, lesson: args.lesson }
     }
@@ -87,6 +98,20 @@ export async function handleToolCall(name, args, context) {
         name: user.name,
         email: user.email,
         currentStreak: streak,
+      }
+    }
+
+    case 'send_private_notification': {
+      const phone = (args.phoneNumber || '').replace(/[^0-9]/g, '')
+      if (!phone || !args.message) return { ok: false, error: 'phoneNumber y message requeridos' }
+      if (!isReady()) return { ok: false, error: 'WhatsApp no disponible' }
+      try {
+        await sendMessage(`${phone}@c.us`, args.message)
+        console.log(`[tool] send_private_notification: Sent to ${phone}`)
+        return { ok: true, sentTo: phone }
+      } catch (err) {
+        console.error(`[tool] send_private_notification failed:`, err.message)
+        return { ok: false, error: err.message }
       }
     }
 

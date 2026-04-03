@@ -5,6 +5,55 @@ import { analyzeImage } from '../ai/provider.js'
 import { runStudyFlow } from '../ai/engine.js'
 import { queries } from '../db/index.js'
 
+async function extractExifMetadata(imagePath) {
+  try {
+    const metadata = await sharp(imagePath).metadata()
+    const exif = metadata.exif ? parseExifBuffer(metadata.exif) : {}
+    return {
+      width: metadata.width,
+      height: metadata.height,
+      format: metadata.format,
+      size: metadata.size,
+      hasAlpha: metadata.hasAlpha,
+      orientation: metadata.orientation,
+      density: metadata.density,
+      dateTime: exif.DateTime || exif.DateTimeOriginal || null,
+      make: exif.Make || null,
+      model: exif.Model || null,
+      software: exif.Software || null,
+      gpsLatitude: exif.GPSLatitude || null,
+      gpsLongitude: exif.GPSLongitude || null,
+      isScreenshot: !!(
+        metadata.hasAlpha ||
+        (exif.Software && /screenshot|snip|capture/i.test(exif.Software))
+      ),
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseExifBuffer(buffer) {
+  try {
+    const str = buffer.toString('ascii')
+    const fields = {}
+    const patterns = [
+      ['DateTime', /DateTime\x00(.{19})/],
+      ['DateTimeOriginal', /DateTimeOriginal\x00(.{19})/],
+      ['Make', /Make\x00([^\x00]{2,30})/],
+      ['Model', /Model\x00([^\x00]{2,40})/],
+      ['Software', /Software\x00([^\x00]{2,40})/],
+    ]
+    for (const [key, regex] of patterns) {
+      const match = str.match(regex)
+      if (match) fields[key] = match[1].trim()
+    }
+    return fields
+  } catch {
+    return {}
+  }
+}
+
 export const studyRouter = Router()
 
 async function processImage(inputPath) {
@@ -43,10 +92,14 @@ studyRouter.post('/submit', async (req, res) => {
       `[study/submit] Received image: ${req.file.originalname} (${(req.file.size / 1024).toFixed(0)}KB)`
     )
 
+    const exif = await extractExifMetadata(rawPath)
+    console.log('[study/submit] EXIF metadata:', JSON.stringify(exif))
+
     const processedPath = await processImage(rawPath)
 
     console.log('[study/submit] Analyzing image with vision...')
     const analysis = await analyzeImage(processedPath)
+    analysis.exif = exif
     console.log('[study/submit] Vision analysis:', JSON.stringify(analysis))
 
     const activeSession = queries.getActiveSession(req.user.userId)
@@ -84,6 +137,7 @@ Si NO es una captura valida de Platzi, usa reject_image explicando por que.`
     const aiResult = await runStudyFlow(req.user.userId, userMessage, {
       photoPath: processedPath,
       sessionId: activeSession?.id,
+      imageMetadata: analysis,
     })
     console.log('[study/submit] AI result:', {
       message: aiResult.message,

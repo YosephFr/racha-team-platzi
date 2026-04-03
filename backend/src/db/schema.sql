@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS study_sessions (
   started_at TEXT,
   completed_at TEXT,
   validated INTEGER DEFAULT 0,
+  image_metadata TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

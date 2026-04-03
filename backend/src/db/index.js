@@ -19,6 +19,9 @@ db.exec(schema)
 try {
   db.exec("ALTER TABLE reminders ADD COLUMN country TEXT NOT NULL DEFAULT 'AR'")
 } catch (_) {}
+try {
+  db.exec('ALTER TABLE study_sessions ADD COLUMN image_metadata TEXT')
+} catch (_) {}
 
 export const queries = {
   upsertUser(email, name, avatarUrl) {
@@ -100,6 +103,13 @@ export const queries = {
         validated ? 1 : 0,
         sessionId
       )
+  },
+
+  updateSessionMetadata(sessionId, metadata) {
+    db.prepare('UPDATE study_sessions SET image_metadata = ? WHERE id = ?').run(
+      JSON.stringify(metadata),
+      sessionId
+    )
   },
 
   getActiveSession(userId) {

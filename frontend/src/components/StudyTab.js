@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Camera, Image, Upload, Sparkles, CheckCircle, XCircle } from 'lucide-react'
+import {
+  Camera,
+  Image,
+  Upload,
+  Sparkles,
+  CheckCircle,
+  XCircle,
+  Timer,
+  BookOpen,
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import { compressImage } from '@/lib/utils'
 import StreakMascot from './StreakMascot'
@@ -25,6 +34,79 @@ function ConfettiPiece({ delay, color }) {
   )
 }
 
+function StudyTimer({ startedAt }) {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!startedAt) return
+    const start = new Date(startedAt).getTime()
+    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000))
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [startedAt])
+
+  const hours = Math.floor(elapsed / 3600)
+  const mins = Math.floor((elapsed % 3600) / 60)
+  const secs = elapsed % 60
+  const totalMins = elapsed / 60
+
+  let timerColor = '#DC2626'
+  let timerLabel = 'Seguí asi...'
+  if (totalMins >= 30) {
+    timerColor = '#98ca3f'
+    timerLabel = 'Excelente sesion!'
+  } else if (totalMins >= 15) {
+    timerColor = '#F59E0B'
+    timerLabel = 'Buen ritmo!'
+  }
+
+  const formatted =
+    hours > 0
+      ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+      : `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+
+  return (
+    <div className="text-center">
+      <p
+        className="font-heading text-5xl tabular-nums tracking-tight"
+        style={{ color: timerColor }}
+      >
+        {formatted}
+      </p>
+      <p className="text-sm mt-2" style={{ color: timerColor }}>
+        {timerLabel}
+      </p>
+      <div className="flex justify-center gap-1 mt-3">
+        {[15, 25, 30].map((m) => (
+          <div
+            key={m}
+            className="h-1.5 rounded-full transition-all duration-500"
+            style={{
+              width: 40,
+              background: totalMins >= m ? timerColor : '#e2e5d9',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ScannerOverlay() {
+  return (
+    <div className="absolute inset-0 z-10 overflow-hidden rounded-2xl">
+      <div
+        className="absolute left-0 right-0 h-0.5 bg-accent shadow-[0_0_8px_rgba(152,202,63,0.6)]"
+        style={{
+          animation: 'scanner-line 2s ease-in-out infinite',
+        }}
+      />
+      <div className="absolute inset-0 bg-accent/5" />
+    </div>
+  )
+}
+
 export default function StudyTab({ onComplete, todayCompleted }) {
   const [activeSession, setActiveSession] = useState(null)
   const [phase, setPhase] = useState('loading')
@@ -43,7 +125,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
       .then((d) => {
         if (d.session) {
           setActiveSession(d.session)
-          setPhase('capture')
+          setPhase('studying')
         } else {
           setPhase('capture')
         }
@@ -79,7 +161,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
 
       if (data.action === 'started') {
         setActiveSession(data.session)
-        setPhase('result')
+        setPhase('studying')
       } else if (data.action === 'completed') {
         setPhase('result')
         if (data.validated) {
@@ -111,10 +193,15 @@ export default function StudyTab({ onComplete, todayCompleted }) {
     clearPreview()
   }, [])
 
-  const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
-  const isEnd = !!activeSession
+  const handleFinishStudy = useCallback(() => {
+    setPhase('capture')
+    clearPreview()
+  }, [])
 
-  if (todayCompleted && phase !== 'result') {
+  const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
+  const isEnd = phase === 'capture' && !!activeSession
+
+  if (todayCompleted && phase !== 'result' && phase !== 'studying') {
     return (
       <div className="px-5 pt-6 pb-4 max-w-md mx-auto relative">
         <div className="bg-mesh" />
@@ -160,7 +247,13 @@ export default function StudyTab({ onComplete, todayCompleted }) {
         animate={{ opacity: 1, y: 0 }}
         className="font-heading text-xl mb-5"
       >
-        {phase === 'loading' ? 'Cargando...' : isEnd ? 'Completar sesion' : 'Iniciar estudio'}
+        {phase === 'loading'
+          ? 'Cargando...'
+          : phase === 'studying'
+            ? 'Estudiando...'
+            : isEnd
+              ? 'Completar sesion'
+              : 'Iniciar estudio'}
       </motion.h1>
 
       <AnimatePresence mode="wait">
@@ -177,6 +270,32 @@ export default function StudyTab({ onComplete, todayCompleted }) {
               <div className="w-2 h-2 rounded-full bg-accent typing-dot" />
               <div className="w-2 h-2 rounded-full bg-accent typing-dot" />
             </div>
+          </motion.div>
+        )}
+
+        {phase === 'studying' && (
+          <motion.div
+            key="studying"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+          >
+            <div className="card-base p-6 text-center mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                <BookOpen size={24} className="text-accent-dim" />
+              </div>
+              {activeSession?.start_course && (
+                <p className="text-sm text-muted mb-4">{activeSession.start_course}</p>
+              )}
+              <StudyTimer startedAt={activeSession?.started_at} />
+            </div>
+
+            <button
+              onClick={handleFinishStudy}
+              className="w-full py-4 rounded-2xl font-semibold text-base bg-accent text-white glow-accent active:scale-[0.97] transition-transform"
+            >
+              Terminar sesion de estudio
+            </button>
           </motion.div>
         )}
 
@@ -266,11 +385,21 @@ export default function StudyTab({ onComplete, todayCompleted }) {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
-            className="card-base p-8 text-center"
           >
-            <div className="w-14 h-14 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto mb-4" />
-            <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
-            <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+            {preview && (
+              <div className="relative rounded-2xl overflow-hidden border border-border mb-4">
+                <img
+                  src={preview}
+                  alt="Analizando"
+                  className="w-full h-auto max-h-[260px] object-cover"
+                />
+                <ScannerOverlay />
+              </div>
+            )}
+            <div className="card-base p-6 text-center">
+              <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
+              <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+            </div>
           </motion.div>
         )}
 
@@ -329,7 +458,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
               onClick={handleDone}
               className="w-full py-4 rounded-2xl bg-accent text-white font-semibold glow-accent active:scale-[0.97] transition-transform"
             >
-              {result?.action === 'started' ? 'Entendido' : 'Volver al inicio'}
+              Volver al inicio
             </button>
 
             {(result?.action === 'rejected' || result?.action === 'error') && (

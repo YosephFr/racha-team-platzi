@@ -1,18 +1,14 @@
 import { Router } from 'express'
 import cron from 'node-cron'
 import { queries } from '../db/index.js'
-import { sendMessage, isReady } from '../whatsapp/session-manager.js'
-import { COUNTRY_TIMEZONES } from '../config.js'
+import { isReady } from '../whatsapp/session-manager.js'
+import { COUNTRY_TIMEZONES, config } from '../config.js'
+import { runHeartbeat } from '../ai/engine.js'
+import { getStreakInfo, getEffectiveDate } from '../services/streak.js'
 
 export const remindersRouter = Router()
 
 const VALID_COUNTRIES = Object.keys(COUNTRY_TIMEZONES)
-
-const COUNTRY_PREFIXES = {
-  AR: '+54',
-  CO: '+57',
-  PE: '+51',
-}
 
 remindersRouter.get('/', (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'No autenticado' })
@@ -58,29 +54,31 @@ remindersRouter.get('/countries', (_req, res) => {
   res.json({
     countries: VALID_COUNTRIES.map((code) => ({
       code,
-      prefix: COUNTRY_PREFIXES[code],
       timezone: COUNTRY_TIMEZONES[code],
     })),
   })
 })
 
-const REMINDER_MESSAGES = [
-  'Hey {name}! Ya es hora de estudiar en Platzi. Tu racha te espera!',
-  '{name}, no dejes que se apague la llama! Hora de sumar un dia mas a tu racha.',
-  'Ey {name}! Platzi te extrana. Vamos a estudiar un ratito?',
-  '{name}! Recordatorio amigable: tu racha no se mantiene sola. A estudiar!',
-  'Hola {name}! Hoy es un gran dia para aprender algo nuevo en Platzi.',
-  '{name}, tu yo del futuro te va a agradecer si estudias hoy. Dale!',
-]
+async function sendAIReminder(userId, phoneNumber, reason) {
+  if (!isReady()) {
+    console.warn(`[reminders] WhatsApp not ready, skipping for user ${userId}`)
+    return
+  }
 
-function getRandomMessage(name) {
-  const msg = REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)]
-  return msg.replace('{name}', name || 'crack')
-}
+  const user = queries.getUserById(userId)
+  const streakInfo = getStreakInfo(userId)
+  const activeSession = queries.getActiveSession(userId)
 
-function formatPhoneForWA(phone) {
-  const digits = phone.replace(/[^0-9]/g, '')
-  return `${digits}@c.us`
+  const systemMsg = `[SISTEMA] ${reason}
+Datos del usuario: nombre="${user?.name || 'Usuario'}", racha=${streakInfo.currentStreak} dias, hoyCompletado=${streakInfo.todayCompleted}, sesionActiva=${!!activeSession}, telefono=${phoneNumber}.
+Usa send_private_notification con phoneNumber="${phoneNumber}" para enviarle un mensaje. Se conciso, amigable, maximo 1 emoji.`
+
+  try {
+    await runHeartbeat(userId, systemMsg)
+    console.log(`[reminders] AI reminder sent to user ${userId} (${reason})`)
+  } catch (err) {
+    console.error(`[reminders] AI reminder failed for user ${userId}:`, err.message)
+  }
 }
 
 cron.schedule('* * * * *', async () => {
@@ -97,21 +95,49 @@ cron.schedule('* * * * *', async () => {
       const currentMinute = userTime.getMinutes()
 
       if (currentHour === reminder.hour && currentMinute === reminder.minute) {
-        if (!isReady()) {
-          console.warn(
-            `[reminders] WhatsApp not ready, skipping reminder for user ${reminder.user_id}`
-          )
-          continue
-        }
+        await sendAIReminder(
+          reminder.user_id,
+          reminder.phone_number,
+          `Recordatorio programado de las ${String(reminder.hour).padStart(2, '0')}:${String(reminder.minute).padStart(2, '0')}`
+        )
+      }
 
-        const message = getRandomMessage(reminder.user_name)
-        const chatId = formatPhoneForWA(reminder.phone_number)
-        await sendMessage(chatId, message)
-        console.log(`[reminders] Sent to ${chatId} for ${reminder.user_name}`)
+      if (currentHour === 22 && currentMinute === 0) {
+        const streakInfo = getStreakInfo(reminder.user_id)
+        if (!streakInfo.todayCompleted) {
+          await sendAIReminder(
+            reminder.user_id,
+            reminder.phone_number,
+            'Alerta nocturna: son las 10pm y el usuario NO ha estudiado hoy. Motivalo a hacer aunque sea una clase rapida.'
+          )
+        }
       }
     } catch (err) {
       console.error(`[reminders] Error for user ${reminder.user_id}:`, err.message)
     }
+  }
+
+  try {
+    const allUsers = queries.getAllUsers()
+    for (const user of allUsers) {
+      const active = queries.getActiveSession(user.id)
+      if (!active?.started_at) continue
+
+      const startedAt = new Date(active.started_at)
+      const elapsed = (now - startedAt) / 1000 / 60
+      if (elapsed >= 120 && elapsed < 121) {
+        const reminder = queries.getReminder(user.id)
+        if (reminder) {
+          await sendAIReminder(
+            user.id,
+            reminder.phone_number,
+            'El usuario lleva mas de 2 horas con una sesion de estudio abierta sin cerrar. Recuerdale amablemente que la cierre.'
+          )
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[reminders] Error checking open sessions:', err.message)
   }
 })
 
