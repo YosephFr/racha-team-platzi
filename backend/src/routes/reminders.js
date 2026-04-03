@@ -95,6 +95,13 @@ cron.schedule('* * * * *', async () => {
       const currentMinute = userTime.getMinutes()
 
       if (currentHour === reminder.hour && currentMinute === reminder.minute) {
+        const info = getStreakInfo(reminder.user_id)
+        if (info.todayCompleted) {
+          console.log(
+            `[reminders] User ${reminder.user_id} already studied today, skipping scheduled reminder`
+          )
+          continue
+        }
         await sendAIReminder(
           reminder.user_id,
           reminder.phone_number,

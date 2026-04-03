@@ -19,8 +19,15 @@ export function getStreakLabel(level) {
   return labels[level] || labels[0]
 }
 
+function parseUTCDate(str) {
+  if (!str) return new Date()
+  const s = String(str)
+  if (s.includes('Z') || s.includes('+')) return new Date(s)
+  return new Date(s.replace(' ', 'T') + 'Z')
+}
+
 export function formatRelativeTime(dateStr) {
-  const date = new Date(dateStr)
+  const date = parseUTCDate(dateStr)
   const now = new Date()
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)

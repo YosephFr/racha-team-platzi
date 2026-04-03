@@ -42,7 +42,9 @@ function formatTime(seconds) {
 }
 
 function formatTimestamp(ts) {
-  const d = new Date(ts)
+  const s = String(ts || '')
+  const normalized = s.includes('Z') || s.includes('+') ? s : s.replace(' ', 'T') + 'Z'
+  const d = new Date(normalized)
   return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 }
 

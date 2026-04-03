@@ -39,7 +39,11 @@ function StudyTimer({ startedAt }) {
 
   useEffect(() => {
     if (!startedAt) return
-    const start = new Date(startedAt).getTime()
+    const normalized =
+      startedAt.includes('Z') || startedAt.includes('+')
+        ? startedAt
+        : startedAt.replace(' ', 'T') + 'Z'
+    const start = new Date(normalized).getTime()
     const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000))
     tick()
     const interval = setInterval(tick, 1000)
