@@ -34,17 +34,17 @@ export default function DashboardPage() {
       .catch(console.error)
   }, [user])
 
-  const switchTab = useCallback(
-    (tab) => {
-      setActiveTab(tab)
-      if (tab === 'home' || tab === 'racha') refreshData()
-      requestAnimationFrame(() => {
-        if (mainRef.current) mainRef.current.scrollTop = 0
-        window.scrollTo(0, 0)
-      })
-    },
-    [refreshData]
-  )
+  const refreshRef = useRef(refreshData)
+  refreshRef.current = refreshData
+
+  const switchTab = useCallback((tab) => {
+    setActiveTab(tab)
+    if (tab === 'home' || tab === 'racha') refreshRef.current()
+    requestAnimationFrame(() => {
+      if (mainRef.current) mainRef.current.scrollTop = 0
+      window.scrollTo(0, 0)
+    })
+  }, [])
 
   const handleStudyComplete = useCallback(() => {
     switchTab('home')
