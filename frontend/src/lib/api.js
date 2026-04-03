@@ -43,6 +43,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  getGoogleAuthUrl() {
+    return `${getApiUrl()}/api/auth/google`
+  },
+
   login(email, name) {
     return request('/api/auth/login', {
       method: 'POST',

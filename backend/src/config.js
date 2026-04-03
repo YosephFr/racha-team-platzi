@@ -30,6 +30,10 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:4035',
   jwtSecret: process.env.JWT_SECRET || 'racha-dev-secret-change-in-prod',
   bypassOAuth: process.env.BYPASS_OAUTH !== 'false',
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  },
   db: {
     path: process.env.DATABASE_PATH || './data/racha.db',
   },

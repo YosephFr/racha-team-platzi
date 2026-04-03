@@ -10,6 +10,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+    if (urlToken) {
+      localStorage.setItem('racha_token', urlToken)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     const token = localStorage.getItem('racha_token')
     if (!token) {
       setLoading(false)
@@ -31,12 +40,21 @@ export function AuthProvider({ children }) {
     return data.user
   }, [])
 
+  const loginWithToken = useCallback(async (token) => {
+    localStorage.setItem('racha_token', token)
+    const data = await api.getMe()
+    setUser(data.user)
+    return data.user
+  }, [])
+
   const logout = useCallback(() => {
     localStorage.removeItem('racha_token')
     setUser(null)
   }, [])
 
-  return <AuthContext value={{ user, loading, login, logout }}>{children}</AuthContext>
+  return (
+    <AuthContext value={{ user, loading, login, loginWithToken, logout }}>{children}</AuthContext>
+  )
 }
 
 export function useAuth() {
