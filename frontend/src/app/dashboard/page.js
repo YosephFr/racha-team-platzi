@@ -34,12 +34,8 @@ export default function DashboardPage() {
       .catch(console.error)
   }, [user])
 
-  const refreshRef = useRef(refreshData)
-  refreshRef.current = refreshData
-
   const switchTab = useCallback((tab) => {
     setActiveTab(tab)
-    if (tab === 'home' || tab === 'racha') refreshRef.current()
     requestAnimationFrame(() => {
       if (mainRef.current) mainRef.current.scrollTop = 0
       window.scrollTo(0, 0)
@@ -72,11 +68,12 @@ export default function DashboardPage() {
   }, [user])
 
   useEffect(() => {
-    function onFocus() {
-      refreshData()
-    }
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
+    if (activeTab === 'home' || activeTab === 'racha') refreshData()
+  }, [activeTab, refreshData])
+
+  useEffect(() => {
+    window.addEventListener('focus', refreshData)
+    return () => window.removeEventListener('focus', refreshData)
   }, [refreshData])
 
   if (loading || !user) return null
