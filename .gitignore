@@ -17,3 +17,5 @@ frontend/public/sw.js
 Thumbs.db
 
 *.tsbuildinfo
+
+docs/deploy.md

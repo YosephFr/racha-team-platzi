@@ -1,333 +1,175 @@
 # Racha Team Platzi
 
-App mobile-first PWA que motiva a un grupo de amigos a mantener su racha de estudio en Platzi. Cada usuario comprueba que estudio subiendo fotos, la IA valida el avance, y se notifica al grupo por WhatsApp.
+A mobile-first PWA that helps a group of friends maintain their daily study streak on [Platzi](https://platzi.com). Users prove they studied by uploading screenshots, AI validates their progress, and the group gets notified via WhatsApp.
 
-**Produccion:** [platzi.indexa.ar](https://platzi.indexa.ar)
+## How it works
+
+1. **Start studying** - Upload a screenshot of your Platzi course. The AI analyzes it, extracts course info, and starts a timed session.
+2. **Study timer** - A real-time timer tracks your session. Color-coded motivation: red (<15min), yellow (15-25min), green (30min+).
+3. **Complete your streak** - Upload a final screenshot showing progress. The AI validates advancement and marks your daily streak.
+4. **Group notifications** - WhatsApp messages notify the group when someone starts studying, completes their streak, or hits a milestone.
+5. **Smart reminders** - AI-powered personal WhatsApp reminders at your chosen time, plus automatic alerts at 10 PM if you haven't studied and session-timeout warnings.
 
 ## Stack
 
-| Capa              | Tecnologia                                                                                             |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| Frontend          | Next.js 15 (App Router), React 19, Tailwind CSS 3, Motion (Framer Motion), Lucide React, Serwist (PWA) |
-| Backend           | Node.js, Express 5 (ESM), SQLite (better-sqlite3), Multer                                              |
-| IA Vision         | GPT-4o via Chat Completions API (analisis de imagenes)                                                 |
-| IA Conversacional | GPT-5.4 Mini via Responses API con `conversation_id` (modelo razonador)                                |
-| WhatsApp          | whatsapp-web.js (Puppeteer, LocalAuth, QR pairing)                                                     |
-| Proxy             | Nginx reverse proxy con SSL (Cloudflare)                                                               |
+| Layer             | Technology                                                               |
+| ----------------- | ------------------------------------------------------------------------ |
+| Frontend          | Next.js 15 (App Router), React 19, Tailwind CSS 3, Motion, Serwist PWA   |
+| Backend           | Node.js, Express 5 (ESM), SQLite (better-sqlite3, WAL mode)              |
+| AI Vision         | GPT-4o - Screenshot analysis with EXIF metadata extraction               |
+| AI Conversational | GPT-5.4 Mini - Agentic tool loop via OpenAI Responses API                |
+| Voice             | ElevenLabs TTS, OpenAI Whisper STT                                       |
+| WhatsApp          | whatsapp-web.js with pairing code auth, health checks, graceful shutdown |
+| Auth              | Google OAuth 2.0, JWT (30-day expiry)                                    |
+| Deploy            | PM2, Nginx reverse proxy, Let's Encrypt SSL, Cloudflare                  |
 
-## Arquitectura
-
-```
-                    ┌─────────────────────┐
-                    │   platzi.indexa.ar   │
-                    │       (Nginx)        │
-                    └────┬───────────┬─────┘
-                         │           │
-                    /    │     /api/  │
-                         │           │
-              ┌──────────▼──┐  ┌─────▼──────────┐
-              │  Frontend   │  │    Backend      │
-              │  Next.js    │  │    Express      │
-              │  :4035      │  │    :4036        │
-              └─────────────┘  └──┬──────┬───┬───┘
-                                  │      │   │
-                            ┌─────▼┐ ┌───▼┐ ┌▼────────┐
-                            │OpenAI│ │ DB │ │WhatsApp  │
-                            │ API  │ │SQLi│ │ Web.js   │
-                            └──────┘ └────┘ └──────────┘
-```
-
-El backend expone una API REST. La IA no es un chat aparte: esta incrustada en el flujo de la app. Un motor agentico (tool loop) decide cuando iniciar sesiones, validar estudio, marcar rachas y enviar notificaciones via Function Tools.
-
-## Estructura de carpetas
+## Architecture
 
 ```
-racha-team-platzi/
-├── frontend/                   Next.js PWA (port 4035)
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── layout.js       Root layout (fonts, AuthProvider)
-│   │   │   ├── page.js         Redirect segun auth
-│   │   │   ├── globals.css     Tailwind + design system
-│   │   │   ├── manifest.js     PWA manifest
-│   │   │   ├── login/page.js   Login con bypass OAuth
-│   │   │   ├── dashboard/page.js  App shell (tabs: home, racha, chat, perfil)
-│   │   │   └── study/page.js   Flujo de estudio (4 pasos con camara)
-│   │   ├── components/
-│   │   │   ├── BottomNav.js    Navegacion inferior con 5 tabs
-│   │   │   ├── StreakFireButton.js  Boton central animado (cambia segun racha)
-│   │   │   ├── StreakMascot.js SVG animado con 6 niveles de evolucion
-│   │   │   ├── StreakCalendar.js  Calendario heatmap de 30 dias
-│   │   │   ├── HomeTab.js      Dashboard: racha, stats, leaderboard
-│   │   │   ├── RachaTab.js     Historial, calendario, estadisticas
-│   │   │   ├── ChatTab.js      Chat con IA (Indi) - localStorage
-│   │   │   ├── ProfileTab.js   Perfil, nivel, WhatsApp status, logout
-│   │   │   └── PhotoCapture.js Camara/galeria con preview
-│   │   ├── lib/
-│   │   │   ├── api.js          Cliente HTTP (resuelve host dinamicamente)
-│   │   │   ├── auth.js         React Context + JWT en localStorage
-│   │   │   └── utils.js        cn(), getStreakLevel(), formatRelativeTime()
-│   │   └── sw.js               Service worker (Serwist)
-│   ├── tailwind.config.mjs
-│   ├── postcss.config.mjs
-│   └── next.config.mjs         Serwist + allowedDevOrigins
-│
-├── backend/                    Node.js + Express (port 4036)
-│   ├── src/
-│   │   ├── server.js           Entry point (CORS, multer, JWT, rutas)
-│   │   ├── config.js           Variables de entorno
-│   │   ├── ai/
-│   │   │   ├── provider.js     OpenAI client (Responses API + Chat Completions)
-│   │   │   ├── engine.js       Motor agentico: tool loop (max 10 iteraciones)
-│   │   │   └── tools/
-│   │   │       ├── definitions.js  6 function tools
-│   │   │       └── handlers.js     Implementacion de cada tool
-│   │   ├── db/
-│   │   │   ├── index.js        SQLite init + prepared statements
-│   │   │   └── schema.sql      Tablas: users, study_sessions, streaks
-│   │   ├── services/
-│   │   │   └── streak.js       Calculo de racha (reglas configurables)
-│   │   ├── whatsapp/
-│   │   │   ├── client.js       Factory de whatsapp-web.js con Puppeteer
-│   │   │   ├── session-manager.js  Lifecycle, auto-reconnect, QR
-│   │   │   └── notify.js       Envio a WA_NOTIFY_TARGETS
-│   │   └── routes/
-│   │       ├── auth.js         POST /login, GET /me
-│   │       ├── study.js        POST /start, POST /complete, GET /sessions, GET /active
-│   │       ├── streaks.js      GET /, GET /leaderboard
-│   │       ├── whatsapp.js     GET /status, GET /qr
-│   │       └── chat.js         POST / (chat directo con IA)
-│   └── data/                   SQLite DB + uploads + WhatsApp session (gitignored)
-│
-├── nginx/
-│   └── platzi.indexa.ar.conf   Reverse proxy (/ -> :4035, /api/ -> :4036)
-│
-├── package.json                Scripts del monorepo
-├── .env.example                Template de variables de entorno
-└── CLAUDE.md                   Contexto tecnico para agentes
+Browser (PWA)
+    |
+    v
+Nginx (SSL termination, reverse proxy)
+    |
+    +-- / --------> Next.js 15 (port 4035)
+    |                  App Router, SSR/static
+    |                  Tailwind + Motion animations
+    |
+    +-- /api/ ----> Express 5 (port 4036)
+                       |
+                       +-- OpenAI Responses API (agentic tool loop)
+                       +-- OpenAI Chat Completions (GPT-4o vision)
+                       +-- ElevenLabs TTS / Whisper STT
+                       +-- SQLite (WAL mode)
+                       +-- whatsapp-web.js (Puppeteer)
 ```
 
-## Variables de entorno
+## Features
 
-Copiar `.env.example` a `backend/.env` y `frontend/.env.local`:
+### AI-Powered Study Validation
 
-### Backend (`backend/.env`)
+- GPT-4o analyzes uploaded screenshots to extract course name, lesson, class number, progress percentage, instructor, and more
+- EXIF metadata extraction (device, timestamp, dimensions) for anti-cheat validation
+- Agentic tool loop with up to 10 iterations - the AI decides which actions to take (start session, validate progress, mark streak, send notification)
 
-| Variable                  | Default                           | Descripcion                                                                 |
-| ------------------------- | --------------------------------- | --------------------------------------------------------------------------- |
-| `BACKEND_PORT`            | `4036`                            | Puerto del servidor Express                                                 |
-| `FRONTEND_URL`            | `http://localhost:4035`           | Origen permitido en CORS                                                    |
-| `JWT_SECRET`              | `racha-dev-secret-change-in-prod` | Secreto para firmar JWT                                                     |
-| `BYPASS_OAUTH`            | `true`                            | `true` = login solo con email, `false` = requiere OAuth                     |
-| `DATABASE_PATH`           | `./data/racha.db`                 | Ruta de la base SQLite                                                      |
-| `OPENAI_API_KEY`          | —                                 | API key de OpenAI (requerida)                                               |
-| `OPENAI_VISION_MODEL`     | `gpt-4o`                          | Modelo para analisis de imagenes                                            |
-| `OPENAI_CHAT_MODEL`       | `gpt-5.4-mini`                    | Modelo conversacional (Responses API)                                       |
-| `OPENAI_REASONING_EFFORT` | `medium`                          | Esfuerzo de razonamiento: `low`, `medium`, `high`                           |
-| `STREAK_REQUIRED_DAYS`    | `1,2,3,4,5`                       | Dias obligatorios (0=Dom, 1=Lun, ..., 6=Sab)                                |
-| `STREAK_OPTIONAL_DAYS`    | `6,0`                             | Dias opcionales (suman pero no rompen la racha)                             |
-| `STREAK_EXCLUDED_DATES`   | —                                 | Fechas excluidas/feriados (formato `YYYY-MM-DD`, separadas por coma)        |
-| `WA_NOTIFY_TARGETS`       | —                                 | Destinatarios WhatsApp (numeros `@c.us` o IDs de grupo, separados por coma) |
-| `WA_SESSION_PATH`         | `./data/.wwebjs_auth`             | Ruta de sesion persistente de WhatsApp                                      |
-| `WA_CACHE_PATH`           | `./data/.wwebjs_cache`            | Cache del navegador de WhatsApp                                             |
+### Study Session Timer
 
-### Frontend (`frontend/.env.local`)
+- Real-time synchronized timer persists across page refreshes (backed by `started_at` in the database)
+- Color-coded progress: red → yellow → green as study time increases
+- Automatically detects active sessions on page load
 
-| Variable               | Default                 | Descripcion                                                           |
-| ---------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`  | `http://localhost:4036` | URL del backend (solo para SSR; en browser se resuelve dinamicamente) |
-| `NEXT_PUBLIC_API_PORT` | `4036`                  | Puerto del backend (para resolucion dinamica en browser)              |
+### Streak System
 
-## Desarrollo local
+- Configurable required days (Mon-Fri), optional days (weekends), excluded days (holidays)
+- **4 AM reset** - Streaks reset at 4 AM local time (configurable), not midnight, so late-night study sessions count
+- 6 streak levels with animated SVG mascot: Apagado → Chispa → Fuego → Ardiendo → Inferno → Legendario
+
+### WhatsApp Integration
+
+- Pairing code authentication (no QR scanning needed)
+- Puppeteer health checks every 60s with automatic session recovery
+- Graceful shutdown with SIGKILL backstop for zombie Chrome processes
+- Group notifications for study events
+- Private AI-generated reminders via heartbeat injection into the user's AI conversation
+
+### Smart Reminders
+
+- User-configurable daily reminder at any time (supports Argentina, Colombia, Peru timezones)
+- Automatic 10 PM alert if you haven't studied today
+- 2-hour open session warning
+- All reminders are AI-generated through the user's Indi conversation thread
+
+### Indi (AI Assistant)
+
+- Personal AI study companion with persistent conversation via OpenAI Conversations API
+- Responds to text, images, and voice messages
+- Can start/complete study sessions, check streaks, and send notifications via function tools
+- System heartbeat messages allow automated actions (reminders, alerts) to flow through the AI naturally
+
+## Setup
+
+### Prerequisites
+
+- Node.js 22+
+- A Google OAuth 2.0 client (for authentication)
+- OpenAI API key (GPT-4o + GPT-5.4 Mini)
+- A WhatsApp account for notifications (optional)
+
+### Install
 
 ```bash
-# 1. Instalar dependencias
-npm run install:all
-
-# 2. Configurar variables de entorno
-cp .env.example backend/.env
-# Editar backend/.env con tu OPENAI_API_KEY
-
-echo "NEXT_PUBLIC_API_URL=http://localhost:4036" > frontend/.env.local
-
-# 3. Correr ambos servicios
-npm run dev
-# O por separado:
-npm run dev:frontend   # http://localhost:4035
-npm run dev:backend    # http://localhost:4036
-```
-
-El frontend resuelve el backend dinamicamente usando `window.location.hostname` + puerto 4036, lo que permite acceder desde Tailscale, LAN, o cualquier IP sin configuracion adicional.
-
-## Deploy en produccion
-
-**Servidor:** ImanLeads (148.113.220.109, `ssh imanleads`)
-**Dominio:** platzi.indexa.ar (DNS via Cloudflare)
-
-```bash
-# En el servidor:
-
-# 1. Clonar y configurar
-git clone <repo> /path/to/racha-team-platzi
+git clone https://github.com/YosephFr/racha-team-platzi.git
 cd racha-team-platzi
 npm run install:all
+```
+
+### Configure
+
+Copy the environment template and fill in your values:
+
+```bash
 cp .env.example backend/.env
-# Editar backend/.env con valores de produccion
-
-# 2. Build del frontend
-npm run build
-
-# 3. Configurar Nginx
-sudo cp nginx/platzi.indexa.ar.conf /etc/nginx/sites-available/
-sudo ln -s /etc/nginx/sites-available/platzi.indexa.ar.conf /etc/nginx/sites-enabled/
-# Generar certificado SSL self-signed (Cloudflare lo termina):
-sudo mkdir -p /etc/nginx/ssl/platzi.indexa.ar
-sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-  -keyout /etc/nginx/ssl/platzi.indexa.ar/platzi.indexa.ar.key \
-  -out /etc/nginx/ssl/platzi.indexa.ar/platzi.indexa.ar.crt
-sudo nginx -t && sudo systemctl reload nginx
-
-# 4. Iniciar servicios
-npm run start
-# O usar pm2:
-pm2 start npm --name "racha-frontend" -- run start:frontend
-pm2 start npm --name "racha-backend" -- run start:backend
 ```
 
-### Nginx
+Key variables:
 
-La config en `nginx/platzi.indexa.ar.conf` hace:
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
+- `OPENAI_API_KEY` - For vision analysis and conversational AI
+- `WA_PRIMARY_PHONE` - WhatsApp number for pairing code auth
+- `WA_NOTIFY_TARGETS` - WhatsApp group ID for notifications
+- `STREAK_RESET_HOUR` - Hour at which streaks reset (default: 4 AM)
 
-- Puerto 80: redirige a HTTPS
-- Puerto 443: SSL con Cloudflare allow-list
-- `location /` → proxy a `:4035` (frontend)
-- `location /api/` → proxy a `:4036` (backend)
-- WebSocket upgrade headers en ambos locations
-- Body limit 50MB, read timeout 600s
+See `.env.example` for the full list.
 
-## API endpoints
+### Development
 
-Todos los endpoints autenticados requieren header `Authorization: Bearer <jwt>`.
+The app is designed to be deployed to a remote server. Code locally, push, then deploy:
 
-### Autenticacion
-
-| Metodo | Ruta              | Auth | Descripcion                                                |
-| ------ | ----------------- | ---- | ---------------------------------------------------------- |
-| POST   | `/api/auth/login` | No   | Login. Body: `{ email, name? }`. Retorna `{ user, token }` |
-| GET    | `/api/auth/me`    | Si   | Perfil del usuario autenticado                             |
-
-### Estudio
-
-| Metodo | Ruta                  | Auth | Descripcion                                                                                                     |
-| ------ | --------------------- | ---- | --------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/study/start`    | Si   | Iniciar sesion. Body: `multipart/form-data` con campo `photo`. La IA analiza la imagen y registra el inicio     |
-| POST   | `/api/study/complete` | Si   | Completar sesion. Body: `multipart/form-data` con campo `photo`. La IA compara inicio vs fin y valida el avance |
-| GET    | `/api/study/active`   | Si   | Sesion activa actual (o `null`)                                                                                 |
-| GET    | `/api/study/sessions` | Si   | Historial de sesiones (ultimas 20)                                                                              |
-
-### Rachas
-
-| Metodo | Ruta                       | Auth | Descripcion                                                             |
-| ------ | -------------------------- | ---- | ----------------------------------------------------------------------- |
-| GET    | `/api/streaks`             | Si   | Info de racha: `currentStreak`, `todayCompleted`, calendario de 30 dias |
-| GET    | `/api/streaks/leaderboard` | No   | Ranking de todos los usuarios por racha                                 |
-
-### Chat
-
-| Metodo | Ruta        | Auth | Descripcion                                                        |
-| ------ | ----------- | ---- | ------------------------------------------------------------------ |
-| POST   | `/api/chat` | Si   | Chat directo con la IA. Body: `{ message }`. Retorna `{ message }` |
-
-### WhatsApp
-
-| Metodo | Ruta                   | Auth | Descripcion                   |
-| ------ | ---------------------- | ---- | ----------------------------- |
-| GET    | `/api/whatsapp/status` | No   | Estado de conexion WhatsApp   |
-| GET    | `/api/whatsapp/qr`     | No   | QR code para emparejar sesion |
-
-## Sistema de rachas
-
-### Reglas configurables via `.env`
-
-- **Dias requeridos** (`STREAK_REQUIRED_DAYS`): Por defecto Lun-Vie. Si no se estudia un dia requerido, la racha se rompe.
-- **Dias opcionales** (`STREAK_OPTIONAL_DAYS`): Por defecto Sab-Dom. Si se estudia, suma al contador. Si no, la racha NO se rompe.
-- **Fechas excluidas** (`STREAK_EXCLUDED_DATES`): Feriados. Se saltan completamente en el calculo.
-
-### Calculo
-
-El servicio `streak.js` camina hacia atras desde hoy hasta 365 dias, contando dias consecutivos completados. El calculo respeta las reglas de dias requeridos/opcionales/excluidos.
-
-### Niveles de mascota
-
-| Nivel | Racha      | Visual                                |
-| ----- | ---------- | ------------------------------------- |
-| 0     | 0 dias     | Gris, apagado, ojos cerrados          |
-| 1     | 1-3 dias   | Amarillo, ojos abiertos               |
-| 2     | 4-7 dias   | Naranja, sonrisa, bouncing            |
-| 3     | 8-14 dias  | Rojo, cara feliz, particulas          |
-| 4     | 15-30 dias | Rojo oscuro, entusiasmado, cheeks     |
-| 5     | 30+ dias   | Violeta, corona, particulas multiples |
-
-## Integracion con IA
-
-### Dos modelos, dos APIs
-
-1. **Vision (GPT-4o)** — Chat Completions API
-   - Analiza screenshots de Platzi
-   - Extrae: curso, leccion, numero de clase, progreso
-   - Retorna JSON estructurado
-
-2. **Conversacional (GPT-5.4 Mini)** — Responses API
-   - Modelo razonador con `reasoning: { effort }` configurable
-   - Usa `developer` role (no `system`) y NO acepta `temperature`
-   - Persistencia via `conversation_id` por usuario
-   - Motor agentico con tool loop (max 10 iteraciones)
-
-### Function Tools
-
-La IA decide que herramientas usar segun el contexto:
-
-| Tool                | Cuando se usa                                           |
-| ------------------- | ------------------------------------------------------- |
-| `start_study`       | Cuando el usuario sube foto de inicio                   |
-| `validate_study`    | Cuando el usuario sube foto final                       |
-| `complete_streak`   | Despues de validar estudio exitosamente                 |
-| `get_streak_info`   | Cuando se pide info de la racha                         |
-| `send_notification` | Despues de iniciar y completar estudio                  |
-| `get_user_info`     | Antes de enviar notificaciones (para obtener el nombre) |
-
-### Flujo tipico de estudio
-
-```
-Usuario sube foto de inicio
-  → Backend llama analyzeImage() (GPT-4o vision)
-  → Resultado se inyecta como prompt al motor agentico
-  → IA llama start_study → get_user_info → send_notification
-  → WhatsApp envia: "Juan empezo a estudiar Curso de React!"
-
-Usuario sube foto final
-  → analyzeImage() analiza foto final
-  → Motor agentico compara inicio vs fin
-  → IA llama validate_study(isValid: true) → complete_streak → get_user_info → send_notification
-  → WhatsApp envia: "Juan completo su dia 7 de racha!"
+```bash
+npm run lint
+npm run format
 ```
 
-## Integracion WhatsApp
+### Production Deploy
 
-Usa `whatsapp-web.js` con Puppeteer headless:
+```bash
+git push
+ssh <server> "cd ~/racha-team-platzi && git pull && cd frontend && npm install && npm run build && cd ../backend && npm install && cd .. && pm2 restart racha-frontend racha-backend"
+```
 
-- **Pairing**: QR code disponible en `GET /api/whatsapp/qr`, se muestra en terminal tambien
-- **Sesion**: persistida con `LocalAuth` en `WA_SESSION_PATH`
-- **Auto-reconnect**: hasta 3 intentos con backoff exponencial (10s, 20s, 40s)
-- **Notificaciones**: se envian a todos los `WA_NOTIFY_TARGETS` configurados
-- **Mensajes**: generados por la IA, creativos y diferentes cada vez
+## API Endpoints
 
-## Base de datos
+| Method          | Path                      | Description                                     |
+| --------------- | ------------------------- | ----------------------------------------------- |
+| POST            | /api/auth/login           | Email login (bypass mode)                       |
+| GET             | /api/auth/google          | Google OAuth redirect                           |
+| GET             | /api/auth/google/callback | Google OAuth callback                           |
+| GET             | /api/auth/me              | Current user profile                            |
+| POST            | /api/study/submit         | Upload photo → AI analysis + session management |
+| POST            | /api/study/start          | Start study session with photo                  |
+| POST            | /api/study/complete       | Complete study session with photo               |
+| GET             | /api/study/active         | Get active study session                        |
+| GET             | /api/study/sessions       | Session history                                 |
+| GET             | /api/streaks              | Streak info + 30-day calendar                   |
+| GET             | /api/streaks/leaderboard  | All users ranked by streak                      |
+| POST            | /api/chat                 | Send message to Indi                            |
+| POST            | /api/chat/transcribe      | Audio transcription (Whisper)                   |
+| POST            | /api/tts                  | Text-to-speech (ElevenLabs)                     |
+| GET/POST/DELETE | /api/reminders            | Manage daily reminders                          |
+| GET             | /api/whatsapp/status      | WhatsApp connection status                      |
+| GET             | /health                   | Backend health check                            |
 
-SQLite con WAL mode. Tres tablas:
+## Database
 
-- **`users`**: id, email (unique), name, avatar_url, conversation_id, timestamps
-- **`study_sessions`**: id, user_id, fotos inicio/fin, metadatos curso/leccion/clase, validated, timestamps
-- **`streaks`**: id, user_id, date, completed, session_id. UNIQUE(user_id, date)
+SQLite with WAL mode. 6 tables:
 
-La DB se crea automaticamente al iniciar el backend. Ubicacion por defecto: `backend/data/racha.db`.
+- **users** - Email, name, avatar, OpenAI conversation_id
+- **study_sessions** - Start/end photos, course metadata, EXIF data, validation status
+- **streaks** - Daily completion records per user
+- **chat_conversations** - AI chat threads with OpenAI conversation_id
+- **chat_messages** - Message history (text, images, audio, tool calls)
+- **reminders** - WhatsApp reminder schedules with country/timezone
+
+## License
+
+MIT
