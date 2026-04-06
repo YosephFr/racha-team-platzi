@@ -8,7 +8,7 @@ A mobile-first PWA that helps a group of friends maintain their daily study stre
 2. **Study timer** - A real-time timer tracks your session. Color-coded motivation: red (<15min), yellow (15-25min), green (30min+).
 3. **Complete your streak** - Upload a final screenshot showing progress. The AI validates advancement and marks your daily streak.
 4. **Group notifications** - WhatsApp messages notify the group when someone starts studying, completes their streak, or hits a milestone.
-5. **Smart reminders** - AI-powered personal WhatsApp reminders at your chosen time, plus automatic alerts at 10 PM if you haven't studied and session-timeout warnings.
+5. **Smart reminders** - AI-powered personal WhatsApp reminders at your chosen time, plus automatic alerts if you haven't studied.
 
 ## Stack
 
@@ -20,8 +20,7 @@ A mobile-first PWA that helps a group of friends maintain their daily study stre
 | AI Conversational | GPT-5.4 Mini - Agentic tool loop via OpenAI Responses API                |
 | Voice             | ElevenLabs TTS, OpenAI Whisper STT                                       |
 | WhatsApp          | whatsapp-web.js with pairing code auth, health checks, graceful shutdown |
-| Auth              | Google OAuth 2.0, JWT (30-day expiry)                                    |
-| Deploy            | PM2, Nginx reverse proxy, Let's Encrypt SSL, Cloudflare                  |
+| Auth              | Google OAuth 2.0, JWT in HttpOnly cookies (30-day expiry)                |
 
 ## Architecture
 
@@ -29,13 +28,13 @@ A mobile-first PWA that helps a group of friends maintain their daily study stre
 Browser (PWA)
     |
     v
-Nginx (SSL termination, reverse proxy)
+Reverse Proxy (SSL termination)
     |
-    +-- / --------> Next.js 15 (port 4035)
+    +-- / --------> Next.js (frontend)
     |                  App Router, SSR/static
     |                  Tailwind + Motion animations
     |
-    +-- /api/ ----> Express 5 (port 4036)
+    +-- /api/ ----> Express (backend)
                        |
                        +-- OpenAI Responses API (agentic tool loop)
                        +-- OpenAI Chat Completions (GPT-4o vision)
@@ -50,19 +49,20 @@ Nginx (SSL termination, reverse proxy)
 
 - GPT-4o analyzes uploaded screenshots to extract course name, lesson, class number, progress percentage, instructor, and more
 - EXIF metadata extraction (device, timestamp, dimensions) for anti-cheat validation
+- Server-side guards reject images that aren't clearly from Platzi — the AI cannot start sessions with empty or invalid data
 - Agentic tool loop with up to 10 iterations - the AI decides which actions to take (start session, validate progress, mark streak, send notification)
 
 ### Study Session Timer
 
 - Real-time synchronized timer persists across page refreshes (backed by `started_at` in the database)
-- Color-coded progress: red → yellow → green as study time increases
+- Color-coded progress: red -> yellow -> green as study time increases
 - Automatically detects active sessions on page load
 
 ### Streak System
 
 - Configurable required days (Mon-Fri), optional days (weekends), excluded days (holidays)
 - **4 AM reset** - Streaks reset at 4 AM local time (configurable), not midnight, so late-night study sessions count
-- 6 streak levels with animated SVG mascot: Apagado → Chispa → Fuego → Ardiendo → Inferno → Legendario
+- 6 streak levels with animated SVG mascot: Apagado, Chispa, Fuego, Ardiendo, Inferno, Legendario
 
 ### WhatsApp Integration
 
@@ -74,10 +74,10 @@ Nginx (SSL termination, reverse proxy)
 
 ### Smart Reminders
 
-- User-configurable daily reminder at any time (supports Argentina, Colombia, Peru timezones)
-- Automatic 10 PM alert if you haven't studied today
+- User-configurable daily reminder at any time (supports multiple timezones)
+- Automatic evening alert if you haven't studied today
 - 2-hour open session warning
-- All reminders are AI-generated through the user's Indi conversation thread
+- All reminders are AI-generated through the user's conversation thread
 
 ### Indi (AI Assistant)
 
@@ -111,53 +111,58 @@ Copy the environment template and fill in your values:
 cp .env.example backend/.env
 ```
 
-Key variables:
+Required variables:
 
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
-- `OPENAI_API_KEY` - For vision analysis and conversational AI
-- `WA_PRIMARY_PHONE` - WhatsApp number for pairing code auth
-- `WA_NOTIFY_TARGETS` - WhatsApp group ID for notifications
-- `STREAK_RESET_HOUR` - Hour at which streaks reset (default: 4 AM)
+| Variable               | Description                                                               |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `JWT_SECRET`           | Random secret for signing JWTs (required, backend won't start without it) |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                                                    |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret                                                |
+| `OPENAI_API_KEY`       | For vision analysis and conversational AI                                 |
+
+Optional variables:
+
+| Variable              | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| `WA_PRIMARY_PHONE`    | WhatsApp number for pairing code auth          |
+| `WA_NOTIFY_TARGETS`   | WhatsApp group ID for notifications            |
+| `ELEVENLABS_API_KEY`  | For text-to-speech                             |
+| `ELEVENLABS_VOICE_ID` | ElevenLabs voice to use                        |
+| `STREAK_RESET_HOUR`   | Hour at which streaks reset (default: 4 AM)    |
+| `CORS_ORIGINS`        | Comma-separated allowed origins                |
+| `BYPASS_OAUTH`        | Set to `true` to enable email login (dev only) |
 
 See `.env.example` for the full list.
 
 ### Development
-
-The app is designed to be deployed to a remote server. Code locally, push, then deploy:
 
 ```bash
 npm run lint
 npm run format
 ```
 
-### Production Deploy
-
-```bash
-git push
-ssh <server> "cd ~/racha-team-platzi && git pull && cd frontend && npm install && npm run build && cd ../backend && npm install && cd .. && pm2 restart racha-frontend racha-backend"
-```
-
 ## API Endpoints
 
-| Method          | Path                      | Description                                     |
-| --------------- | ------------------------- | ----------------------------------------------- |
-| POST            | /api/auth/login           | Email login (bypass mode)                       |
-| GET             | /api/auth/google          | Google OAuth redirect                           |
-| GET             | /api/auth/google/callback | Google OAuth callback                           |
-| GET             | /api/auth/me              | Current user profile                            |
-| POST            | /api/study/submit         | Upload photo → AI analysis + session management |
-| POST            | /api/study/start          | Start study session with photo                  |
-| POST            | /api/study/complete       | Complete study session with photo               |
-| GET             | /api/study/active         | Get active study session                        |
-| GET             | /api/study/sessions       | Session history                                 |
-| GET             | /api/streaks              | Streak info + 30-day calendar                   |
-| GET             | /api/streaks/leaderboard  | All users ranked by streak                      |
-| POST            | /api/chat                 | Send message to Indi                            |
-| POST            | /api/chat/transcribe      | Audio transcription (Whisper)                   |
-| POST            | /api/tts                  | Text-to-speech (ElevenLabs)                     |
-| GET/POST/DELETE | /api/reminders            | Manage daily reminders                          |
-| GET             | /api/whatsapp/status      | WhatsApp connection status                      |
-| GET             | /health                   | Backend health check                            |
+| Method          | Path                      | Auth | Description                                    |
+| --------------- | ------------------------- | ---- | ---------------------------------------------- |
+| GET             | /api/auth/google          | No   | Google OAuth redirect                          |
+| GET             | /api/auth/google/callback | No   | Google OAuth callback                          |
+| POST            | /api/auth/login           | No   | Email login (bypass mode only)                 |
+| POST            | /api/auth/logout          | No   | Clear auth cookie                              |
+| GET             | /api/auth/me              | Yes  | Current user profile                           |
+| POST            | /api/study/submit         | Yes  | Upload photo, AI analysis + session management |
+| POST            | /api/study/start          | Yes  | Start study session with photo                 |
+| POST            | /api/study/complete       | Yes  | Complete study session with photo              |
+| GET             | /api/study/active         | Yes  | Get active study session                       |
+| GET             | /api/study/sessions       | Yes  | Session history                                |
+| GET             | /api/streaks              | Yes  | Streak info + 30-day calendar                  |
+| GET             | /api/streaks/leaderboard  | Yes  | All users ranked by streak                     |
+| POST            | /api/chat                 | Yes  | Send message to Indi                           |
+| POST            | /api/chat/transcribe      | Yes  | Audio transcription (Whisper)                  |
+| POST            | /api/tts                  | Yes  | Text-to-speech (ElevenLabs)                    |
+| GET/POST/DELETE | /api/reminders            | Yes  | Manage daily reminders                         |
+| GET             | /api/whatsapp/status      | Yes  | WhatsApp connection status                     |
+| GET             | /health                   | No   | Backend health check                           |
 
 ## Database
 
@@ -168,7 +173,18 @@ SQLite with WAL mode. 6 tables:
 - **streaks** - Daily completion records per user
 - **chat_conversations** - AI chat threads with OpenAI conversation_id
 - **chat_messages** - Message history (text, images, audio, tool calls)
-- **reminders** - WhatsApp reminder schedules with country/timezone
+- **reminders** - WhatsApp reminder schedules with timezone
+
+## Security
+
+- Auth via HttpOnly, Secure, SameSite cookies
+- OAuth 2.0 with CSRF protection (state parameter)
+- Upload validation: only JPEG, PNG, WebP, HEIC accepted; original files deleted after processing
+- Rate limiting on all API endpoints
+- Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- Server-side guards on AI tool execution (streak completion requires validated session)
+- CORS with explicit origin allowlist
+- EXIF fields sanitized before AI prompt injection
 
 ## License
 

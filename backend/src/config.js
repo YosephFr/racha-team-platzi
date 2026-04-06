@@ -51,7 +51,7 @@ export const config = {
   },
   elevenlabs: {
     apiKey: process.env.ELEVENLABS_API_KEY,
-    voiceId: process.env.ELEVENLABS_VOICE_ID || 'REDACTED_VOICE_ID',
+    voiceId: process.env.ELEVENLABS_VOICE_ID || '',
     model: process.env.ELEVENLABS_MODEL || 'eleven_v3',
   },
   streak: {
