@@ -157,7 +157,7 @@ studyRouter.post('/submit', async (req, res) => {
 ${analysis.visualDescription || 'No disponible'}
 
 === DATOS EXTRAIDOS POR VISION ===
-- Curso: ${analysis.course || 'No detectado'}
+- Curso: ${analysis.course || analysis.classTitle || 'No detectado'}
 - Slug: ${analysis.courseSlug || 'No detectado'}
 - Clase: ${analysis.classTitle || 'No detectada'}
 - Numero: ${analysis.classNumber || '?'}${analysis.totalClasses ? ` de ${analysis.totalClasses}` : ''}
@@ -268,7 +268,7 @@ studyRouter.post('/start', async (req, res) => {
 
     const userMessage = `INICIO DE SESION DE ESTUDIO.
 El usuario subio una foto de Platzi. Analisis de la imagen:
-- Curso: ${analysis.course || 'No detectado'}
+- Curso: ${analysis.course || analysis.classTitle || 'No detectado'}
 - Leccion: ${analysis.lesson || 'No detectada'}
 - Clase: ${analysis.classNumber || 'No detectada'}
 - Progreso: ${analysis.progress || 'No detectado'}
@@ -315,7 +315,7 @@ El usuario subio su foto final. La sesion inicio con:
 - Clase inicial: ${activeSession.start_class_number || 'Desconocida'}
 
 Foto final muestra:
-- Curso: ${analysis.course || 'No detectado'}
+- Curso: ${analysis.course || analysis.classTitle || 'No detectado'}
 - Leccion: ${analysis.lesson || 'No detectada'}
 - Clase: ${analysis.classNumber || 'No detectada'}
 - Progreso: ${analysis.progress || 'No detectado'}

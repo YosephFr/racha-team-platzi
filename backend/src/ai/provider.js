@@ -150,7 +150,7 @@ SEGUNDA SECCION: JSON valido con los datos extraidos:
 {
   "isPlatzi": true/false,
   "isBlurry": true/false,
-  "course": "nombre completo del curso o null",
+  "course": "nombre completo del curso (en app movil puede no estar visible: usa el titulo de la clase si no hay otro dato) o null",
   "courseSlug": "slug de la URL (ej: curso-de-react-2025) o null",
   "lesson": "nombre de la leccion/modulo o null",
   "classTitle": "titulo exacto de la clase o null",
