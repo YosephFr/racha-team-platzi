@@ -12,49 +12,27 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const params = new URLSearchParams(window.location.search)
-    const urlToken = params.get('token')
-    if (urlToken) {
-      localStorage.setItem('racha_token', urlToken)
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-
-    const token = localStorage.getItem('racha_token')
-    if (!token) {
-      setLoading(false)
-      return
-    }
     api
       .getMe()
       .then((data) => setUser(data.user))
-      .catch(() => {
-        localStorage.removeItem('racha_token')
-      })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   const login = useCallback(async (email, name) => {
     const data = await api.login(email, name)
-    localStorage.setItem('racha_token', data.token)
     setUser(data.user)
     return data.user
   }, [])
 
-  const loginWithToken = useCallback(async (token) => {
-    localStorage.setItem('racha_token', token)
-    const data = await api.getMe()
-    setUser(data.user)
-    return data.user
-  }, [])
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('racha_token')
+  const logout = useCallback(async () => {
+    try {
+      await api.logout()
+    } catch {}
     setUser(null)
   }, [])
 
-  return (
-    <AuthContext value={{ user, loading, login, loginWithToken, logout }}>{children}</AuthContext>
-  )
+  return <AuthContext value={{ user, loading, login, logout }}>{children}</AuthContext>
 }
 
 export function useAuth() {

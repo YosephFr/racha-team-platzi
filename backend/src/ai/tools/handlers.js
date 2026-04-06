@@ -4,7 +4,7 @@ import { notifyGroup } from '../../whatsapp/notify.js'
 import { sendMessage, isReady } from '../../whatsapp/session-manager.js'
 
 export async function handleToolCall(name, args, context) {
-  const { userId, sessionId } = context
+  const { userId } = context
   console.log(`[tool] Executing: ${name}`, JSON.stringify(args))
 
   switch (name) {
@@ -68,9 +68,17 @@ export async function handleToolCall(name, args, context) {
     }
 
     case 'complete_streak': {
-      const effectiveDate = getEffectiveDate()
       const active = queries.getActiveSession(userId)
-      queries.markStreak(userId, effectiveDate, active?.id || sessionId)
+      if (!active) {
+        console.log(`[tool] complete_streak: No active session for user ${userId}`)
+        return { ok: false, error: 'No hay sesion activa para completar racha' }
+      }
+      if (!active.validated) {
+        console.log(`[tool] complete_streak: Session ${active.id} not validated`)
+        return { ok: false, error: 'La sesion no ha sido validada aun' }
+      }
+      const effectiveDate = getEffectiveDate()
+      queries.markStreak(userId, effectiveDate, active.id)
       const streak = calculateStreak(userId)
       console.log(`[tool] complete_streak: User ${userId} streak=${streak} date=${effectiveDate}`)
       return { ok: true, date: effectiveDate, currentStreak: streak }
@@ -104,6 +112,16 @@ export async function handleToolCall(name, args, context) {
     case 'send_private_notification': {
       const phone = (args.phoneNumber || '').replace(/[^0-9]/g, '')
       if (!phone || !args.message) return { ok: false, error: 'phoneNumber y message requeridos' }
+
+      const reminder = queries.getReminder(userId)
+      const allowedPhone = reminder?.phone_number?.replace(/[^0-9]/g, '')
+      if (!allowedPhone || phone !== allowedPhone) {
+        console.warn(
+          `[tool] send_private_notification: Blocked ${phone} (allowed: ${allowedPhone || 'none'})`
+        )
+        return { ok: false, error: 'Numero no autorizado para este usuario' }
+      }
+
       if (!isReady()) return { ok: false, error: 'WhatsApp no disponible' }
       try {
         await sendMessage(`${phone}@c.us`, args.message)

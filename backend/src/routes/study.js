@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { writeFileSync, statSync } from 'fs'
+import { writeFileSync, statSync, unlinkSync } from 'fs'
 import sharp from 'sharp'
 import exifReader from 'exif-reader'
 import { analyzeImage } from '../ai/provider.js'
@@ -83,6 +83,17 @@ async function extractImageMetadata(imagePath) {
   }
 }
 
+function sanitizeExif(val, maxLen = 200) {
+  if (!val) return null
+  return (
+    String(val)
+      .slice(0, maxLen)
+      .replace(/\[SISTEMA\]/gi, '')
+      .replace(/usa?\s+\w+_\w+/gi, '[redacted]')
+      .trim() || null
+  )
+}
+
 export const studyRouter = Router()
 
 async function processImage(inputPath) {
@@ -122,9 +133,16 @@ studyRouter.post('/submit', async (req, res) => {
     )
 
     const imageMeta = await extractImageMetadata(rawPath)
-    console.log('[study/submit] Image metadata:', JSON.stringify(imageMeta))
+    const safeMeta = { ...imageMeta }
+    delete safeMeta.gpsLatitude
+    delete safeMeta.gpsLongitude
+    delete safeMeta.gpsAltitude
+    console.log('[study/submit] Image metadata:', JSON.stringify(safeMeta))
 
     const processedPath = await processImage(rawPath)
+    try {
+      unlinkSync(rawPath)
+    } catch {}
 
     console.log('[study/submit] Analyzing image with vision...')
     const analysis = await analyzeImage(processedPath)
@@ -159,8 +177,8 @@ ${analysis.visualDescription || 'No disponible'}
 - Tamano archivo: ${imageMeta.fileSize ? Math.round(imageMeta.fileSize / 1024) + 'KB' : '?'}
 - Dispositivo: ${imageMeta.make || '?'} ${imageMeta.model || ''}
 - Software: ${imageMeta.software || 'No disponible'}
-- Descripcion EXIF: ${imageMeta.imageDescription || 'No disponible'}
-- Comentario EXIF: ${imageMeta.userComment || 'No disponible'}
+- Descripcion EXIF: ${sanitizeExif(imageMeta.imageDescription) || 'No disponible'}
+- Comentario EXIF: ${sanitizeExif(imageMeta.userComment) || 'No disponible'}
 - Fecha/hora original: ${imageMeta.dateTimeOriginal || imageMeta.dateTime || 'No disponible'}
 - GPS: ${imageMeta.gpsLatitude && imageMeta.gpsLongitude ? `${imageMeta.gpsLatitude}, ${imageMeta.gpsLongitude}` : 'No disponible'}
 - Altitud GPS: ${imageMeta.gpsAltitude || 'No disponible'}
@@ -232,7 +250,7 @@ Si NO es valido, usa reject_image explicando por que.`
     })
   } catch (err) {
     console.error('[study/submit] Error:', err)
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: 'Error al procesar la imagen' })
   }
 })
 
@@ -241,7 +259,11 @@ studyRouter.post('/start', async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Foto requerida' })
 
   try {
-    const processedPath = await processImage(req.file.path)
+    const rawPath = req.file.path
+    const processedPath = await processImage(rawPath)
+    try {
+      unlinkSync(rawPath)
+    } catch {}
     const analysis = await analyzeImage(processedPath)
 
     const userMessage = `INICIO DE SESION DE ESTUDIO.
@@ -279,7 +301,11 @@ studyRouter.post('/complete', async (req, res) => {
   }
 
   try {
-    const processedPath = await processImage(req.file.path)
+    const rawPath = req.file.path
+    const processedPath = await processImage(rawPath)
+    try {
+      unlinkSync(rawPath)
+    } catch {}
     const analysis = await analyzeImage(processedPath)
 
     const userMessage = `FIN DE SESION DE ESTUDIO.

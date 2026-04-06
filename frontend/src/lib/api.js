@@ -9,23 +9,16 @@ function getApiUrl() {
   return `${window.location.protocol}//${window.location.hostname}:${backendPort}`
 }
 
-function getToken() {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('racha_token')
-}
-
 async function request(path, options = {}) {
   const url = `${getApiUrl()}${path}`
-  const token = getToken()
   const headers = { ...options.headers }
-  if (token) headers['Authorization'] = `Bearer ${token}`
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
 
   let res
   try {
-    res = await fetch(url, { ...options, headers })
+    res = await fetch(url, { ...options, headers, credentials: 'include' })
   } catch (err) {
     throw new Error(`No se pudo conectar al servidor: ${url}`)
   }
@@ -52,6 +45,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, name }),
     })
+  },
+
+  logout() {
+    return request('/api/auth/logout', { method: 'POST' })
   },
 
   getMe() {

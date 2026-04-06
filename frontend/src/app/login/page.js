@@ -1,7 +1,8 @@
 'use client'
 
-import { Suspense, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { motion } from 'motion/react'
 import { useAuth } from '@/lib/auth'
 import { api } from '@/lib/api'
@@ -20,11 +21,10 @@ function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
-  const token = searchParams.get('token')
 
   useEffect(() => {
-    if (!authLoading && (user || token)) router.replace('/dashboard')
-  }, [user, token, authLoading, router])
+    if (!authLoading && user) router.replace('/dashboard')
+  }, [user, authLoading, router])
 
   if (authLoading) return null
 
@@ -69,7 +69,9 @@ function LoginContent() {
             <p className="text-danger text-xs text-center mb-3">
               {error === 'auth_cancelled'
                 ? 'Inicio de sesion cancelado'
-                : 'Error al iniciar sesion. Intenta de nuevo.'}
+                : error === 'invalid_state'
+                  ? 'Sesion expirada. Intenta de nuevo.'
+                  : 'Error al iniciar sesion. Intenta de nuevo.'}
             </p>
           )}
 

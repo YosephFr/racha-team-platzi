@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { randomBytes } from 'crypto'
 import jwt from 'jsonwebtoken'
 import { config } from '../config.js'
 import { queries } from '../db/index.js'
@@ -8,6 +9,14 @@ export const authRouter = Router()
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+  path: '/',
+}
 
 function getCallbackUrl() {
   return `${config.frontendUrl}/api/auth/google/callback`
@@ -20,6 +29,14 @@ function createToken(user) {
 }
 
 authRouter.get('/google', (_req, res) => {
+  const state = randomBytes(16).toString('hex')
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 300000,
+    path: '/',
+  })
   const params = new URLSearchParams({
     client_id: config.google.clientId,
     redirect_uri: getCallbackUrl(),
@@ -27,15 +44,22 @@ authRouter.get('/google', (_req, res) => {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
+    state,
   })
   res.redirect(`${GOOGLE_AUTH_URL}?${params}`)
 })
 
 authRouter.get('/google/callback', async (req, res) => {
-  const { code, error } = req.query
+  const { code, error, state } = req.query
   if (error || !code) {
     return res.redirect(`${config.frontendUrl}/login?error=auth_cancelled`)
   }
+
+  const savedState = req.cookies?.oauth_state
+  if (!state || !savedState || state !== savedState) {
+    return res.redirect(`${config.frontendUrl}/login?error=invalid_state`)
+  }
+  res.clearCookie('oauth_state', { path: '/' })
 
   try {
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
@@ -61,7 +85,8 @@ authRouter.get('/google/callback', async (req, res) => {
     const user = queries.upsertUser(profile.email, profile.name || profile.email, profile.picture)
     const token = createToken(user)
 
-    res.redirect(`${config.frontendUrl}/login?token=${token}`)
+    res.cookie('racha_token', token, COOKIE_OPTIONS)
+    res.redirect(`${config.frontendUrl}/dashboard`)
   } catch (err) {
     console.error('[auth] Google OAuth error:', err.message)
     res.redirect(`${config.frontendUrl}/login?error=auth_failed`)
@@ -80,7 +105,13 @@ authRouter.post('/login', (req, res) => {
 
   const user = queries.upsertUser(email, name || email.split('@')[0], avatarUrl || null)
   const token = createToken(user)
-  res.json({ user, token })
+  res.cookie('racha_token', token, COOKIE_OPTIONS)
+  res.json({ user })
+})
+
+authRouter.post('/logout', (_req, res) => {
+  res.clearCookie('racha_token', { path: '/' })
+  res.json({ ok: true })
 })
 
 authRouter.get('/me', (req, res) => {

@@ -54,8 +54,9 @@ function shouldGenerateVoice(convId, toolResults) {
 chatRouter.post('/', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'No autenticado' })
 
-  const { message, conversationId, image } = req.body
-  if ((!message || typeof message !== 'string') && !image) {
+  const { conversationId, image } = req.body
+  const message = typeof req.body.message === 'string' ? req.body.message.slice(0, 10000) : null
+  if (!message && !image) {
     return res.status(400).json({ error: 'Mensaje requerido' })
   }
 

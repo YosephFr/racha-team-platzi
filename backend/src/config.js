@@ -25,11 +25,17 @@ function parseTargets(str) {
     .filter(Boolean)
 }
 
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is required')
+  process.exit(1)
+}
+
 export const config = {
   port: Number(process.env.BACKEND_PORT) || 4036,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:4035',
-  jwtSecret: process.env.JWT_SECRET || 'racha-dev-secret-change-in-prod',
-  bypassOAuth: process.env.BYPASS_OAUTH !== 'false',
+  jwtSecret: process.env.JWT_SECRET,
+  bypassOAuth: process.env.BYPASS_OAUTH === 'true',
+  allowedOrigins: parseTargets(process.env.CORS_ORIGINS),
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -60,7 +66,7 @@ export const config = {
     sessionPath: process.env.WA_SESSION_PATH || './data/.wwebjs_auth',
     cachePath: process.env.WA_CACHE_PATH || './data/.wwebjs_cache',
     primaryPhone: process.env.WA_PRIMARY_PHONE || '',
-    logMessages: process.env.WA_LOG_MESSAGES !== 'false',
+    logMessages: process.env.WA_LOG_MESSAGES === 'true',
   },
 }
 

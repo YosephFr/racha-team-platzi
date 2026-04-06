@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import cron from 'node-cron'
+import { readdirSync, statSync, unlinkSync } from 'fs'
 import { queries } from '../db/index.js'
 import { isReady } from '../whatsapp/session-manager.js'
-import { COUNTRY_TIMEZONES, config } from '../config.js'
+import { COUNTRY_TIMEZONES } from '../config.js'
 import { runHeartbeat } from '../ai/engine.js'
-import { getStreakInfo, getEffectiveDate } from '../services/streak.js'
+import { getStreakInfo } from '../services/streak.js'
 
 export const remindersRouter = Router()
 
@@ -146,6 +147,41 @@ cron.schedule('* * * * *', async () => {
   } catch (err) {
     console.error('[reminders] Error checking open sessions:', err.message)
   }
+})
+
+cron.schedule('0 3 * * *', () => {
+  const now = Date.now()
+  const TTS_MAX_AGE = 7 * 24 * 60 * 60 * 1000
+  const UPLOAD_MAX_AGE = 30 * 24 * 60 * 60 * 1000
+
+  try {
+    const ttsDir = './data/uploads/tts'
+    for (const file of readdirSync(ttsDir)) {
+      const path = `${ttsDir}/${file}`
+      if (now - statSync(path).mtimeMs > TTS_MAX_AGE) {
+        unlinkSync(path)
+        console.log(`[cleanup] Deleted TTS: ${file}`)
+      }
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error('[cleanup] TTS error:', e.message)
+  }
+
+  try {
+    const uploadsDir = './data/uploads'
+    for (const file of readdirSync(uploadsDir)) {
+      if (!file.includes('-processed.')) continue
+      const path = `${uploadsDir}/${file}`
+      if (now - statSync(path).mtimeMs > UPLOAD_MAX_AGE) {
+        unlinkSync(path)
+        console.log(`[cleanup] Deleted upload: ${file}`)
+      }
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error('[cleanup] Uploads error:', e.message)
+  }
+
+  console.log('[cleanup] Daily cleanup completed')
 })
 
 console.log('[reminders] Cron scheduler initialized (every minute)')
