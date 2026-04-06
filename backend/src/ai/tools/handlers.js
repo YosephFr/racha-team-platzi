@@ -9,6 +9,15 @@ export async function handleToolCall(name, args, context) {
 
   switch (name) {
     case 'start_study': {
+      const course = (args.course || '').trim()
+      const INVALID = ['', 'no detectado', 'null', 'undefined', 'n/a', 'desconocido']
+      if (INVALID.includes(course.toLowerCase())) {
+        console.log(`[tool] start_study: Rejected — empty/invalid course "${args.course}"`)
+        return {
+          ok: false,
+          error: 'No se pudo identificar un curso valido de Platzi. Usa reject_image en su lugar.',
+        }
+      }
       const session = queries.getActiveSession(userId)
       if (session) {
         console.log(`[tool] start_study: User ${userId} already has active session ${session.id}`)

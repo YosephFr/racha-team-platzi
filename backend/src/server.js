@@ -48,8 +48,14 @@ app.use(cookieParser())
 
 mkdirSync('./data/uploads', { recursive: true })
 
-const SAFE_MIMES = ['image/jpeg', 'image/png', 'image/webp']
-const MIME_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }
+const SAFE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const MIME_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+}
 
 const upload = multer({
   storage: multer.diskStorage({
