@@ -108,6 +108,50 @@ export function getStreakInfo(userId) {
   }
 }
 
+export function calculateLeaderboardStreak(userId) {
+  const today = getEffectiveToday()
+  const yearAgo = addDays(today, -365)
+  const allDays = queries.getStreakDays(userId, yearAgo, today)
+  const completedDates = new Set(allDays.filter((d) => d.completed).map((d) => d.date))
+
+  if (!completedDates.size) return 0
+
+  const sorted = [...completedDates].sort()
+  let checkDate = sorted[sorted.length - 1]
+  let streak = 0
+
+  const MAX_LOOKBACK = 365
+  let lookback = 0
+
+  while (lookback < MAX_LOOKBACK) {
+    lookback++
+
+    if (isExcluded(checkDate)) {
+      checkDate = addDays(checkDate, -1)
+      continue
+    }
+
+    if (isOptional(checkDate)) {
+      if (completedDates.has(checkDate)) streak++
+      checkDate = addDays(checkDate, -1)
+      continue
+    }
+
+    if (isRequired(checkDate)) {
+      if (completedDates.has(checkDate)) {
+        streak++
+        checkDate = addDays(checkDate, -1)
+        continue
+      }
+      break
+    }
+
+    checkDate = addDays(checkDate, -1)
+  }
+
+  return streak
+}
+
 export function getEffectiveDate() {
   return getEffectiveToday()
 }

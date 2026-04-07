@@ -1,6 +1,7 @@
 import {
   initConversation,
   initChatConversation,
+  createEphemeralConversation,
   buildInput,
   buildImageInput,
   callResponses,
@@ -170,7 +171,7 @@ export async function runHeartbeat(userId, systemMessage) {
 }
 
 export async function runStudyFlow(userId, userMessage, context = {}) {
-  const conversation = await initConversation(userId)
+  const conversation = await createEphemeralConversation(userId)
   conversation.userId = userId
 
   const tools = getToolDefinitions()

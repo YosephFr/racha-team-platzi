@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getStreakInfo, calculateStreak } from '../services/streak.js'
+import { getStreakInfo, calculateLeaderboardStreak } from '../services/streak.js'
 import { queries } from '../db/index.js'
 
 export const streaksRouter = Router()
@@ -18,7 +18,7 @@ streaksRouter.get('/leaderboard', (req, res) => {
       id: u.id,
       name: u.name,
       avatarUrl: u.avatar_url,
-      streak: calculateStreak(u.id),
+      streak: calculateLeaderboardStreak(u.id),
     }))
     .sort((a, b) => b.streak - a.streak)
 

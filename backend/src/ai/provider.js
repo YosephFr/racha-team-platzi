@@ -59,6 +59,13 @@ export function buildImageInput(systemPrompt, userMessage, imageDataUrl) {
   ]
 }
 
+export async function createEphemeralConversation(userId) {
+  const conv = await getClient().conversations.create({
+    metadata: { user_id: String(userId), type: 'study' },
+  })
+  return { conversationId: conv.id }
+}
+
 export async function callResponses(input, conversation, tools) {
   const payload = {
     model: config.openai.chatModel,
@@ -72,8 +79,12 @@ export async function callResponses(input, conversation, tools) {
   try {
     return await getClient().responses.create(payload)
   } catch (err) {
-    if (err.status === 404 || (err.status === 400 && err.message?.includes('conversation'))) {
-      console.warn('[ai] Conversation not found, recreating...')
+    if (
+      err.status === 404 ||
+      (err.status === 400 &&
+        (err.message?.includes('conversation') || err.message?.includes('No tool output found')))
+    ) {
+      console.warn('[ai] Conversation broken or not found, recreating...')
       const conv = await getClient().conversations.create({
         metadata: { user_id: String(conversation.userId) },
       })
