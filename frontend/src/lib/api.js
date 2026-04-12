@@ -1,4 +1,4 @@
-function getApiUrl() {
+export function getApiUrl() {
   if (typeof window === 'undefined')
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4036'
   const port = window.location.port
@@ -132,6 +132,28 @@ export const api = {
 
   getStats() {
     return request('/api/stats')
+  },
+
+  uploadCertificate(photoFile) {
+    const form = new FormData()
+    form.append('photo', photoFile)
+    return request('/api/certificates', { method: 'POST', body: form })
+  },
+
+  getCertificates() {
+    return request('/api/certificates')
+  },
+
+  getCertificate(id) {
+    return request(`/api/certificates/${id}`)
+  },
+
+  deleteCertificate(id) {
+    return request(`/api/certificates/${id}`, { method: 'DELETE' })
+  },
+
+  getCertificateRanking() {
+    return request('/api/certificates/ranking')
   },
 
   getReminder() {

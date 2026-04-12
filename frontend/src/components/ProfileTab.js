@@ -16,6 +16,8 @@ import {
   Trash2,
   Check,
   Globe,
+  Award,
+  ChevronRight,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { getStreakLevel, getStreakLabel } from '@/lib/utils'
@@ -33,7 +35,7 @@ const COUNTRIES = [
   { code: 'PE', label: 'Peru', prefix: '+51' },
 ]
 
-export default function ProfileTab({ user, streakData, onLogout }) {
+export default function ProfileTab({ user, streakData, onLogout, onTabChange }) {
   const [reminder, setReminder] = useState(null)
   const [country, setCountry] = useState('AR')
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -183,6 +185,24 @@ export default function ProfileTab({ user, streakData, onLogout }) {
           </motion.div>
         </div>
       </div>
+
+      {onTabChange && (
+        <motion.button
+          {...fadeUp}
+          transition={{ delay: 0.10 }}
+          onClick={() => onTabChange('certificates')}
+          className="card-base p-4 mb-5 flex items-center gap-3 w-full text-left active:scale-[0.98] transition-transform lg:hidden"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-violet/10 flex items-center justify-center shrink-0">
+            <Award size={20} className="text-violet" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-heading text-sm text-foreground">Mis Certificados</p>
+            <p className="text-xs text-muted">Tu coleccion de cursos completados</p>
+          </div>
+          <ChevronRight size={18} className="text-muted shrink-0" />
+        </motion.button>
+      )}
 
       <motion.section {...fadeUp} transition={{ delay: 0.12 }} className="card-base p-4 mb-5">
         <div className="flex items-center gap-2 mb-4">

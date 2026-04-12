@@ -10,7 +10,8 @@ import RachaTab from '@/components/RachaTab'
 import ChatTab from '@/components/ChatTab'
 import ProfileTab from '@/components/ProfileTab'
 import StudyTab from '@/components/StudyTab'
-import { Home, Flame, MessageCircle, User, BookOpen } from 'lucide-react'
+import CertificatesTab from '@/components/CertificatesTab'
+import { Home, Flame, MessageCircle, User, BookOpen, Award } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function DashboardPage() {
@@ -83,6 +84,7 @@ export default function DashboardPage() {
   const sidebarItems = [
     { id: 'home', icon: Home, label: 'Inicio' },
     { id: 'racha', icon: Flame, label: 'Racha' },
+    { id: 'certificates', icon: Award, label: 'Certificados' },
     { id: 'chat', icon: MessageCircle, label: 'Indi' },
     { id: 'profile', icon: User, label: 'Perfil' },
   ]
@@ -167,6 +169,8 @@ export default function DashboardPage() {
 
           {activeTab === 'racha' && <RachaTab streakData={streakData} />}
 
+          {activeTab === 'certificates' && <CertificatesTab />}
+
           {activeTab === 'study' && (
             <StudyTab
               onComplete={handleStudyComplete}
@@ -175,7 +179,7 @@ export default function DashboardPage() {
           )}
 
           {activeTab === 'profile' && (
-            <ProfileTab user={user} streakData={streakData} onLogout={handleLogout} />
+            <ProfileTab user={user} streakData={streakData} onLogout={handleLogout} onTabChange={switchTab} />
           )}
         </main>
 

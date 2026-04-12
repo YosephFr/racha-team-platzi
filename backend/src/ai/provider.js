@@ -226,6 +226,92 @@ export async function analyzeImage(imagePath) {
   }
 }
 
+const CERTIFICATE_VISION_PROMPT = `Analiza esta imagen de un certificado de Platzi (plataforma de educacion online).
+
+Los certificados de Platzi tienen un formato estandar con:
+- Logo de Platzi (generalmente verde)
+- Nombre completo del estudiante
+- Nombre del curso completado
+- Fecha de finalizacion
+- Horas o clases del curso
+- Un ID de certificado alfanumerico
+- Una URL de verificacion (platzi.com/p/usuario/curso/diploma/uuid)
+- A veces: nombre de la escuela o ruta, nombre del instructor
+
+INSTRUCCIONES:
+1. Extrae TODA la informacion visible del certificado.
+2. Si algun campo no es visible o legible, usa null.
+3. Si la imagen NO es un certificado de Platzi, indica isPlatziCertificate: false.
+
+Responde con DOS secciones separadas por "---":
+
+PRIMERA SECCION: Descripcion visual del certificado (elementos, colores, layout, texto visible). 2-3 oraciones.
+
+---
+
+SEGUNDA SECCION: JSON valido:
+{
+  "isPlatziCertificate": true/false,
+  "isReadable": true/false,
+  "courseName": "nombre completo del curso o null",
+  "studentName": "nombre del estudiante o null",
+  "completionDate": "fecha (formato YYYY-MM-DD si es posible) o null",
+  "totalHours": "horas del curso o null",
+  "totalClasses": "numero de clases o null",
+  "certificateId": "ID alfanumerico del certificado o null",
+  "certificateUrl": "URL completa de verificacion o null",
+  "schoolName": "nombre de la escuela/ruta de Platzi o null",
+  "instructorName": "nombre del instructor o null",
+  "additionalInfo": "cualquier otro dato relevante o null"
+}`
+
+export async function analyzeCertificate(imagePath) {
+  const { readFileSync } = await import('fs')
+  const imageData = readFileSync(imagePath)
+  const base64 = imageData.toString('base64')
+  const mimeType = imagePath.endsWith('.png') ? 'image/png' : 'image/jpeg'
+  const dataUrl = `data:${mimeType};base64,${base64}`
+
+  const response = await getClient().chat.completions.create({
+    model: config.openai.visionModel,
+    max_tokens: 2048,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: CERTIFICATE_VISION_PROMPT },
+          { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+        ],
+      },
+    ],
+  })
+
+  const text = response.choices[0].message.content
+  try {
+    const parts = text.split('---')
+    const visualDescription = (parts[0] || '').trim()
+    const jsonPart = (parts[1] || parts[0] || '').trim()
+    const cleaned = jsonPart
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim()
+    const jsonStart = cleaned.indexOf('{')
+    const jsonEnd = cleaned.lastIndexOf('}')
+    if (jsonStart === -1) throw new Error('No JSON found')
+    const parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1))
+    parsed.visualDescription = visualDescription
+    return parsed
+  } catch {
+    return {
+      isPlatziCertificate: false,
+      isReadable: false,
+      courseName: null,
+      visualDescription: text,
+      additionalInfo: text,
+    }
+  }
+}
+
 export async function analyzeImageDataUrl(dataUrl) {
   const response = await getClient().chat.completions.create({
     model: config.openai.visionModel,

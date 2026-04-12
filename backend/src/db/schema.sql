@@ -78,3 +78,22 @@ CREATE TABLE IF NOT EXISTS reminders (
 
 CREATE INDEX IF NOT EXISTS idx_reminders_user ON reminders(user_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_active ON reminders(active);
+
+CREATE TABLE IF NOT EXISTS certificates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  image_path TEXT NOT NULL,
+  course_name TEXT,
+  student_name TEXT,
+  completion_date TEXT,
+  total_hours TEXT,
+  total_classes TEXT,
+  certificate_id TEXT,
+  certificate_url TEXT,
+  school_name TEXT,
+  instructor_name TEXT,
+  extracted_data TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_certificates_user ON certificates(user_id);

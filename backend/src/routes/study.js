@@ -1,38 +1,12 @@
 import { Router } from 'express'
-import { writeFileSync, unlinkSync } from 'fs'
-import sharp from 'sharp'
+import { unlinkSync } from 'fs'
 import { analyzeImage } from '../ai/provider.js'
 import { runStudyFlow } from '../ai/engine.js'
 import { queries } from '../db/index.js'
 import { getStreakInfo } from '../services/streak.js'
+import { processImage } from '../services/image.js'
 
 export const studyRouter = Router()
-
-async function processImage(inputPath) {
-  const outputPath = inputPath.replace(/\.[^.]+$/, '-processed.jpg')
-
-  let buffer = await sharp(inputPath)
-    .rotate()
-    .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer()
-
-  let quality = 75
-  while (buffer.length > 2 * 1024 * 1024 && quality > 30) {
-    buffer = await sharp(inputPath)
-      .rotate()
-      .resize({ width: 1440, height: 1440, fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality })
-      .toBuffer()
-    quality -= 10
-  }
-
-  writeFileSync(outputPath, buffer)
-  console.log(
-    `[study] Image processed: ${(buffer.length / 1024).toFixed(0)}KB (quality: ${quality < 75 ? quality + 10 : 85})`
-  )
-  return outputPath
-}
 
 studyRouter.post('/submit', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'No autenticado' })

@@ -294,4 +294,72 @@ export const queries = {
       )
       .all()
   },
+
+  createCertificate(userId, imagePath, data) {
+    return db
+      .prepare(
+        `
+      INSERT INTO certificates (user_id, image_path, course_name, student_name, completion_date, total_hours, total_classes, certificate_id, certificate_url, school_name, instructor_name, extracted_data)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING *
+    `
+      )
+      .get(
+        userId,
+        imagePath,
+        data.courseName || null,
+        data.studentName || null,
+        data.completionDate || null,
+        data.totalHours || null,
+        data.totalClasses || null,
+        data.certificateId || null,
+        data.certificateUrl || null,
+        data.schoolName || null,
+        data.instructorName || null,
+        JSON.stringify(data)
+      )
+  },
+
+  getUserCertificates(userId) {
+    return db
+      .prepare(
+        `
+      SELECT * FROM certificates
+      WHERE user_id = ?
+      ORDER BY completion_date DESC, created_at DESC
+    `
+      )
+      .all(userId)
+  },
+
+  getCertificateById(id, userId) {
+    return db
+      .prepare('SELECT * FROM certificates WHERE id = ? AND user_id = ?')
+      .get(id, userId)
+  },
+
+  deleteCertificate(id, userId) {
+    return db.prepare('DELETE FROM certificates WHERE id = ? AND user_id = ?').run(id, userId)
+  },
+
+  getCertificateByExternalId(userId, certificateId) {
+    return db
+      .prepare('SELECT * FROM certificates WHERE user_id = ? AND certificate_id = ?')
+      .get(userId, certificateId)
+  },
+
+  getCertificateRanking() {
+    const year = new Date().getFullYear()
+    return db
+      .prepare(
+        `
+      SELECT u.id, u.name, u.avatar_url, COUNT(c.id) as count
+      FROM users u
+      LEFT JOIN certificates c ON c.user_id = u.id AND c.created_at >= ?
+      GROUP BY u.id
+      ORDER BY count DESC
+    `
+      )
+      .all(`${year}-01-01`)
+  },
 }

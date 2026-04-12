@@ -16,6 +16,7 @@ import { chatRouter } from './routes/chat.js'
 import { ttsRouter } from './routes/tts.js'
 import { remindersRouter } from './routes/reminders.js'
 import { statsRouter } from './routes/stats.js'
+import { certificatesRouter } from './routes/certificates.js'
 import { db } from './db/index.js'
 
 const app = express()
@@ -128,6 +129,7 @@ app.use('/api/whatsapp', whatsappRouter)
 app.use('/api/tts', costlyLimiter, ttsRouter)
 app.use('/api/reminders', apiLimiter, remindersRouter)
 app.use('/api/stats', apiLimiter, statsRouter)
+app.use('/api/certificates', costlyLimiter, upload.single('photo'), certificatesRouter)
 const audioUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
