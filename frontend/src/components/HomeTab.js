@@ -77,16 +77,14 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
             )}
           </motion.section>
 
-          {!streakData?.todayCompleted && (
-            <motion.div {...fadeUp} transition={{ delay: 0.08 }} className="mb-6">
-              <button
-                onClick={onStudy}
-                className="w-full py-4 rounded-2xl font-semibold text-base bg-accent text-white glow-accent active:scale-[0.97] transition-transform"
-              >
-                Estudiar ahora
-              </button>
-            </motion.div>
-          )}
+          <motion.div {...fadeUp} transition={{ delay: 0.08 }} className="mb-6">
+            <button
+              onClick={onStudy}
+              className={`w-full py-4 rounded-2xl font-semibold text-base active:scale-[0.97] transition-transform ${streakData?.todayCompleted ? 'bg-surface text-foreground border border-border' : 'bg-accent text-white glow-accent'}`}
+            >
+              {streakData?.todayCompleted ? 'Seguir estudiando' : 'Estudiar ahora'}
+            </button>
+          </motion.div>
         </div>
 
         <div>

@@ -77,17 +77,23 @@ export async function handleToolCall(name, args, context) {
     }
 
     case 'complete_streak': {
+      const effectiveDate = getEffectiveDate()
+      const existingStreak = getStreakInfo(userId)
+      if (existingStreak.todayCompleted) {
+        const streak = calculateStreak(userId)
+        console.log(`[tool] complete_streak: User ${userId} already completed today, streak=${streak}`)
+        return { ok: true, date: effectiveDate, currentStreak: streak, alreadyCompleted: true }
+      }
       const active = queries.getActiveSession(userId)
       const lastSession = active || queries.getUserSessions(userId, 1)[0]
       if (!lastSession?.validated) {
         console.log(`[tool] complete_streak: No validated session for user ${userId}`)
         return { ok: false, error: 'No hay sesion validada para completar racha' }
       }
-      const effectiveDate = getEffectiveDate()
       queries.markStreak(userId, effectiveDate, lastSession.id)
       const streak = calculateStreak(userId)
       console.log(`[tool] complete_streak: User ${userId} streak=${streak} date=${effectiveDate}`)
-      return { ok: true, date: effectiveDate, currentStreak: streak }
+      return { ok: true, date: effectiveDate, currentStreak: streak, alreadyCompleted: false }
     }
 
     case 'get_streak_info': {

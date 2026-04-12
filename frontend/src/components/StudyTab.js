@@ -203,30 +203,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
   const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
   const isEnd = phase === 'capture' && !!activeSession
 
-  if (todayCompleted && phase !== 'result' && phase !== 'studying') {
-    return (
-      <div className="px-5 pt-6 pb-4 max-w-md mx-auto relative">
-        <div className="bg-mesh" />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center pt-12"
-        >
-          <StreakMascot streak={30} size={80} />
-          <h2 className="font-heading text-2xl mt-4 text-gradient-fire">Listo por hoy!</h2>
-          <p className="text-muted text-sm mt-2">
-            Ya completaste tu racha de hoy. Descansa y volve manana.
-          </p>
-          <button
-            onClick={onComplete}
-            className="mt-6 px-8 py-3 rounded-2xl bg-accent/10 text-accent-dim font-semibold text-sm active:scale-[0.97] transition-transform"
-          >
-            Volver al inicio
-          </button>
-        </motion.div>
-      </div>
-    )
-  }
+  const isExtraSession = todayCompleted && phase === 'capture'
 
   return (
     <div className="px-5 pt-6 pb-4 max-w-md mx-auto relative">
@@ -244,6 +221,17 @@ export default function StudyTab({ onComplete, todayCompleted }) {
         </div>
       )}
 
+      {isExtraSession && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 px-4 py-3 rounded-2xl bg-accent/10 border border-accent/20"
+        >
+          <p className="text-sm text-accent-dim font-medium">Racha de hoy completada</p>
+          <p className="text-xs text-muted mt-0.5">Podes seguir estudiando sin afectar tu racha</p>
+        </motion.div>
+      )}
+
       <motion.h1
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -255,7 +243,9 @@ export default function StudyTab({ onComplete, todayCompleted }) {
             ? 'Estudiando...'
             : isEnd
               ? 'Completar sesion'
-              : 'Iniciar estudio'}
+              : isExtraSession
+                ? 'Sesion adicional'
+                : 'Iniciar estudio'}
       </motion.h1>
 
       <AnimatePresence mode="wait">
@@ -417,8 +407,11 @@ export default function StudyTab({ onComplete, todayCompleted }) {
                 <>
                   <StreakMascot streak={30} size={72} />
                   <h2 className="font-heading text-xl mt-3 text-gradient-fire">
-                    Racha completada!
+                    {todayCompleted && !showConfetti ? 'Sesion registrada!' : 'Racha completada!'}
                   </h2>
+                  {todayCompleted && !showConfetti && (
+                    <p className="text-sm text-muted mt-1">Buen laburo sumando horas de estudio</p>
+                  )}
                 </>
               ) : result?.action === 'started' ? (
                 <>

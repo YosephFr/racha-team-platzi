@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import { analyzeImage } from '../ai/provider.js'
 import { runStudyFlow } from '../ai/engine.js'
 import { queries } from '../db/index.js'
+import { getStreakInfo } from '../services/streak.js'
 
 export const studyRouter = Router()
 
@@ -76,16 +77,20 @@ ${analysis.visualDescription || 'No disponible'}
 - Borrosa: ${analysis.isBlurry ? 'SI' : 'NO'}`
 
     let userMessage
+    const streakInfo = getStreakInfo(req.user.userId)
+
     if (isEnd) {
+      const alreadyDoneToday = streakInfo.todayCompleted
       userMessage = `El usuario quiere COMPLETAR su sesion de estudio. Tiene una sesion activa que inicio con:
 - Curso inicial: ${activeSession.start_course || 'Desconocido'}
 - Leccion inicial: ${activeSession.start_lesson || 'Desconocida'}
 - Clase inicial: ${activeSession.start_class_number || 'Desconocida'}
+${alreadyDoneToday ? '- NOTA: El usuario YA completo su racha de hoy. Esta es una sesion adicional. Registra la sesion pero NO notifiques al grupo.' : ''}
 
 Ahora subio esta foto:
 ${metadataBlock}
 
-Si es valido, usa validate_study con isValid=true, luego complete_streak, luego send_notification celebrando.
+Si es valido, usa validate_study con isValid=true, luego complete_streak.${alreadyDoneToday ? ' No uses send_notification (ya se notifico hoy).' : ' Si la racha es nueva (alreadyCompleted=false), usa send_notification celebrando.'}
 Si NO es valido, usa reject_image explicando por que.`
     } else {
       userMessage = `El usuario quiere INICIAR una sesion de estudio. Subio esta foto:
@@ -195,11 +200,15 @@ studyRouter.post('/complete', async (req, res) => {
     } catch {}
     const analysis = await analyzeImage(processedPath)
 
+    const completeStreakInfo = getStreakInfo(req.user.userId)
+    const alreadyDoneToday = completeStreakInfo.todayCompleted
+
     const userMessage = `FIN DE SESION DE ESTUDIO.
 El usuario subio su foto final. La sesion inicio con:
 - Curso inicial: ${activeSession.start_course || 'Desconocido'}
 - Leccion inicial: ${activeSession.start_lesson || 'Desconocida'}
 - Clase inicial: ${activeSession.start_class_number || 'Desconocida'}
+${alreadyDoneToday ? '- NOTA: El usuario YA completo su racha de hoy. Esta es una sesion adicional. Registra la sesion pero NO notifiques al grupo.' : ''}
 
 Foto final muestra:
 - Curso: ${analysis.course || analysis.classTitle || 'No detectado'}
@@ -208,7 +217,7 @@ Foto final muestra:
 - Progreso: ${analysis.progress || 'No detectado'}
 - Info adicional: ${analysis.additionalInfo || 'Ninguna'}
 
-Valida si el usuario realmente avanzo. Si es valido, usa validate_study, luego complete_streak, luego send_notification celebrando.`
+Valida si el usuario realmente avanzo. Si es valido, usa validate_study, luego complete_streak.${alreadyDoneToday ? ' No uses send_notification (ya se notifico hoy).' : ' Si la racha es nueva (alreadyCompleted=false), usa send_notification celebrando.'}`
 
     const aiResult = await runStudyFlow(req.user.userId, userMessage, {
       photoPath: processedPath,

@@ -95,30 +95,36 @@ cron.schedule('* * * * *', async () => {
       const currentHour = userTime.getHours()
       const currentMinute = userTime.getMinutes()
 
-      if (currentHour === reminder.hour && currentMinute === reminder.minute) {
-        const info = getStreakInfo(reminder.user_id)
-        if (info.todayCompleted) {
-          console.log(
-            `[reminders] User ${reminder.user_id} already studied today, skipping scheduled reminder`
-          )
-          continue
-        }
+      const streakInfo = getStreakInfo(reminder.user_id)
+      const isNightAlert = currentHour === 22 && currentMinute === 0
+      const isScheduledReminder = currentHour === reminder.hour && currentMinute === reminder.minute
+
+      if (isScheduledReminder && !isNightAlert && !streakInfo.todayCompleted) {
         await sendAIReminder(
           reminder.user_id,
           reminder.phone_number,
           `Recordatorio programado de las ${String(reminder.hour).padStart(2, '0')}:${String(reminder.minute).padStart(2, '0')}`
         )
+      } else if (isScheduledReminder && streakInfo.todayCompleted) {
+        console.log(
+          `[reminders] User ${reminder.user_id} already studied today, skipping scheduled reminder`
+        )
       }
 
-      if (currentHour === 22 && currentMinute === 0) {
-        const streakInfo = getStreakInfo(reminder.user_id)
-        if (!streakInfo.todayCompleted) {
-          await sendAIReminder(
-            reminder.user_id,
-            reminder.phone_number,
-            'Alerta nocturna: son las 10pm y el usuario NO ha estudiado hoy. Motivalo a hacer aunque sea una clase rapida.'
-          )
-        }
+      if (isNightAlert && !streakInfo.todayCompleted) {
+        await sendAIReminder(
+          reminder.user_id,
+          reminder.phone_number,
+          'Alerta nocturna: son las 10pm y el usuario NO ha estudiado hoy. Motivalo a hacer aunque sea una clase rapida.'
+        )
+      }
+
+      if (userTime.getDate() === 26 && currentHour === 12 && currentMinute === 0) {
+        await sendAIReminder(
+          reminder.user_id,
+          reminder.phone_number,
+          'Recordatorio de pago mensual de Platzi. Hoy es dia 26 y toca abonar la cuota del mes. Enviale un mensaje amable, calido y motivador recordandole que es dia de pagar la suscripcion de Platzi. Que el tono sea de buena onda, tipo "ya llego ese dia del mes", y que lo invite a seguir invirtiendo en su crecimiento. Maximo 2 emojis.'
+        )
       }
     } catch (err) {
       console.error(`[reminders] Error for user ${reminder.user_id}:`, err.message)
