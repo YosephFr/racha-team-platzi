@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { unlinkSync } from 'fs'
 import { analyzeCertificate } from '../ai/provider.js'
+import { runHeartbeat } from '../ai/engine.js'
 import { processImage } from '../services/image.js'
 import { queries } from '../db/index.js'
 
@@ -42,6 +43,16 @@ certificatesRouter.post('/', async (req, res) => {
     const certificate = queries.createCertificate(req.user.userId, imageName, analysis)
 
     console.log(`[certificates] Created certificate ${certificate.id} for user ${req.user.userId}`)
+
+    const user = queries.getUserById(req.user.userId)
+    const courseName = analysis.courseName || certificate.course_name || 'un curso de Platzi'
+    const totalCerts = queries.getUserCertificates(req.user.userId).length
+
+    runHeartbeat(
+      req.user.userId,
+      `[SISTEMA] El usuario acaba de obtener un nuevo certificado de Platzi. Nombre del usuario: "${user?.name || 'Estudiante'}". Curso aprobado: "${courseName}". Total de certificados: ${totalCerts}. Usa send_notification para felicitarlo en el grupo de WhatsApp. El mensaje debe celebrar que APROBO y OBTUVO el certificado del curso (no que "subio" un certificado). Se creativo, entusiasta, conciso (1-2 oraciones) y maximo 1 emoji.`
+    ).catch((err) => console.error('[certificates] Notification failed:', err.message))
+
     res.json({ certificate, analysis })
   } catch (err) {
     console.error('[certificates] Error:', err)
