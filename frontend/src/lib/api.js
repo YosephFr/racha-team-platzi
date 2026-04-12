@@ -130,6 +130,10 @@ export const api = {
     return request('/api/chat/transcribe', { method: 'POST', body: form })
   },
 
+  getStats() {
+    return request('/api/stats')
+  },
+
   getReminder() {
     return request('/api/reminders')
   },

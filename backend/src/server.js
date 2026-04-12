@@ -15,6 +15,7 @@ import { whatsappRouter } from './routes/whatsapp.js'
 import { chatRouter } from './routes/chat.js'
 import { ttsRouter } from './routes/tts.js'
 import { remindersRouter } from './routes/reminders.js'
+import { statsRouter } from './routes/stats.js'
 import { db } from './db/index.js'
 
 const app = express()
@@ -126,6 +127,7 @@ app.use('/api/streaks', apiLimiter, streaksRouter)
 app.use('/api/whatsapp', whatsappRouter)
 app.use('/api/tts', costlyLimiter, ttsRouter)
 app.use('/api/reminders', apiLimiter, remindersRouter)
+app.use('/api/stats', apiLimiter, statsRouter)
 const audioUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },

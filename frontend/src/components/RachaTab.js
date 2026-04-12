@@ -2,10 +2,42 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { Calendar, TrendingUp, Trophy, BookOpen, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import {
+  Calendar,
+  TrendingUp,
+  Trophy,
+  BookOpen,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  BarChart3,
+  PieChart as PieIcon,
+  Timer,
+} from 'lucide-react'
 import StreakCalendar from './StreakCalendar'
 import { api } from '@/lib/api'
 import { cn, formatRelativeTime } from '@/lib/utils'
+
+const DailyAreaChart = dynamic(() => import('./Charts').then((m) => m.DailyAreaChart), {
+  ssr: false,
+  loading: () => <div className="h-[160px] skeleton rounded-xl" />,
+})
+
+const ClassesBarChart = dynamic(() => import('./Charts').then((m) => m.ClassesBarChart), {
+  ssr: false,
+  loading: () => <div className="h-[160px] skeleton rounded-xl" />,
+})
+
+const CourseDonut = dynamic(() => import('./Charts').then((m) => m.CourseDonut), {
+  ssr: false,
+  loading: () => <div className="h-[120px] skeleton rounded-xl" />,
+})
+
+const HourHeatmap = dynamic(() => import('./Charts').then((m) => m.HourHeatmap), {
+  ssr: false,
+  loading: () => <div className="h-[100px] skeleton rounded-xl" />,
+})
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -14,6 +46,7 @@ const fadeUp = {
 
 export default function RachaTab({ streakData }) {
   const [sessions, setSessions] = useState([])
+  const [stats, setStats] = useState(null)
   const [showAllSessions, setShowAllSessions] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(true)
 
@@ -23,9 +56,10 @@ export default function RachaTab({ streakData }) {
       .then((d) => setSessions(d.sessions || []))
       .catch(() => {})
       .finally(() => setLoadingSessions(false))
+    api.getStats().then(setStats).catch(() => {})
   }, [])
 
-  const stats = [
+  const statCards = [
     {
       label: 'Racha actual',
       value: streakData?.currentStreak || 0,
@@ -39,20 +73,29 @@ export default function RachaTab({ streakData }) {
       color: 'text-streak-2',
     },
     {
-      label: 'Total dias',
-      value: streakData?.totalDays || 0,
-      icon: Calendar,
+      label: 'Horas totales',
+      value: stats?.summary?.totalHours || 0,
+      icon: Clock,
       color: 'text-violet',
     },
     {
-      label: 'Sesiones',
-      value: streakData?.totalSessions || 0,
-      icon: Clock,
+      label: 'Clases',
+      value: stats?.summary?.totalClasses || streakData?.totalSessions || 0,
+      icon: BookOpen,
       color: 'text-accent-dim',
     },
   ]
 
   const visibleSessions = showAllSessions ? sessions : sessions.slice(0, 5)
+
+  const sessionsWithDuration = sessions.map((s) => {
+    let durationMin = 0
+    if (s.started_at && s.completed_at) {
+      durationMin = Math.round((new Date(s.completed_at) - new Date(s.started_at)) / 60000)
+      if (durationMin < 0 || durationMin > 480) durationMin = 0
+    }
+    return { ...s, durationMin }
+  })
 
   return (
     <div className="px-5 pt-6 pb-4 max-w-md lg:max-w-5xl mx-auto">
@@ -63,12 +106,8 @@ export default function RachaTab({ streakData }) {
       </motion.h1>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
-        <div>
-          <motion.section
-            {...fadeUp}
-            transition={{ delay: 0.04 }}
-            className="card-base p-4 mb-5 lg:mb-0"
-          >
+        <div className="space-y-5">
+          <motion.section {...fadeUp} transition={{ delay: 0.04 }} className="card-base p-4">
             <div className="flex items-center gap-2 mb-3">
               <Calendar size={16} className="text-accent-dim" />
               <h3 className="font-heading text-sm text-muted">Ultimos 30 dias</h3>
@@ -89,15 +128,35 @@ export default function RachaTab({ streakData }) {
               </div>
             </div>
           </motion.section>
+
+          {stats?.dailyStudy?.length > 2 && (
+            <motion.section {...fadeUp} transition={{ delay: 0.06 }} className="card-base p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 size={16} className="text-accent-dim" />
+                <h3 className="font-heading text-sm text-muted">Tiempo de estudio diario</h3>
+              </div>
+              <DailyAreaChart data={stats.dailyStudy} />
+            </motion.section>
+          )}
+
+          {stats?.weeklyStudy?.length > 0 && (
+            <motion.section {...fadeUp} transition={{ delay: 0.07 }} className="card-base p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen size={16} className="text-violet" />
+                <h3 className="font-heading text-sm text-muted">Clases por semana</h3>
+              </div>
+              <ClassesBarChart data={stats.weeklyStudy} />
+            </motion.section>
+          )}
         </div>
 
-        <div>
+        <div className="space-y-5 mt-5 lg:mt-0">
           <motion.div
             {...fadeUp}
             transition={{ delay: 0.08 }}
-            className="grid grid-cols-2 gap-3 mb-5"
+            className="grid grid-cols-2 gap-3"
           >
-            {stats.map((stat) => (
+            {statCards.map((stat) => (
               <div key={stat.label} className="card-base p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <stat.icon size={16} className={stat.color} />
@@ -107,6 +166,26 @@ export default function RachaTab({ streakData }) {
               </div>
             ))}
           </motion.div>
+
+          {stats?.courses?.length > 0 && (
+            <motion.section {...fadeUp} transition={{ delay: 0.10 }} className="card-base p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <PieIcon size={16} className="text-violet" />
+                <h3 className="font-heading text-sm text-muted">Cursos estudiados</h3>
+              </div>
+              <CourseDonut data={stats.courses} />
+            </motion.section>
+          )}
+
+          {stats?.hourDistribution?.some((h) => h > 0) && (
+            <motion.section {...fadeUp} transition={{ delay: 0.11 }} className="card-base p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Timer size={16} className="text-accent-dim" />
+                <h3 className="font-heading text-sm text-muted">Horarios de estudio</h3>
+              </div>
+              <HourHeatmap data={stats.hourDistribution} />
+            </motion.section>
+          )}
 
           <motion.section {...fadeUp} transition={{ delay: 0.12 }} className="card-base p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -131,29 +210,35 @@ export default function RachaTab({ streakData }) {
             ) : (
               <>
                 <div className="space-y-2.5">
-                  {visibleSessions.map((s) => (
-                    <div key={s.id} className="flex items-center gap-3 py-1">
-                      <div
-                        className={cn(
-                          'w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold',
-                          s.validated ? 'bg-accent/15 text-accent-dim' : 'bg-surface text-muted'
+                  {visibleSessions.map((s) => {
+                    const dur = sessionsWithDuration.find((sd) => sd.id === s.id)
+                    return (
+                      <div key={s.id} className="flex items-center gap-3 py-1">
+                        <div
+                          className={cn(
+                            'w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0',
+                            s.validated ? 'bg-accent/15 text-accent-dim' : 'bg-surface text-muted'
+                          )}
+                        >
+                          {s.validated ? '✓' : '—'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">
+                            {s.start_course || 'Sesion de estudio'}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted">
+                            <span>{formatRelativeTime(s.created_at)}</span>
+                            {dur?.durationMin > 0 && <span>{dur.durationMin} min</span>}
+                          </div>
+                        </div>
+                        {s.classes_completed > 0 && (
+                          <span className="text-xs text-accent-dim font-semibold shrink-0">
+                            {s.classes_completed} clases
+                          </span>
                         )}
-                      >
-                        {s.validated ? '✓' : '—'}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground truncate">
-                          {s.start_course || 'Sesion de estudio'}
-                        </p>
-                        <p className="text-xs text-muted">{formatRelativeTime(s.created_at)}</p>
-                      </div>
-                      {s.classes_completed > 0 && (
-                        <span className="text-xs text-accent-dim font-semibold">
-                          {s.classes_completed} clases
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 {sessions.length > 5 && (
                   <button

@@ -1,9 +1,29 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { TrendingUp, BookOpen, Clock, Trophy, ChevronRight } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import {
+  TrendingUp,
+  BookOpen,
+  Clock,
+  Trophy,
+  ChevronRight,
+  BarChart3,
+  Timer,
+} from 'lucide-react'
 import StreakMascot from './StreakMascot'
+import { api } from '@/lib/api'
 import { getStreakLevel } from '@/lib/utils'
+
+const WeeklyBarChart = dynamic(() => import('./Charts').then((m) => m.WeeklyBarChart), {
+  ssr: false,
+  loading: () => <div className="h-[160px] skeleton rounded-xl" />,
+})
+
+const Sparkline = dynamic(() => import('./Charts').then((m) => m.Sparkline), {
+  ssr: false,
+})
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -12,9 +32,20 @@ const fadeUp = {
 
 export default function HomeTab({ user, streak, streakData, leaderboard, onStudy, onTabChange }) {
   const level = getStreakLevel(streak)
+  const [stats, setStats] = useState(null)
 
-  const stats = [
-    { label: 'Racha actual', value: streak, icon: TrendingUp, color: 'text-accent-dim' },
+  useEffect(() => {
+    api.getStats().then(setStats).catch(() => {})
+  }, [])
+
+  const cards = [
+    {
+      label: 'Racha actual',
+      value: streak,
+      icon: TrendingUp,
+      color: 'text-accent-dim',
+      sparkColor: '#98ca3f',
+    },
     {
       label: 'Mejor racha',
       value: streakData?.bestStreak || 0,
@@ -22,18 +53,21 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
       color: 'text-streak-2',
     },
     {
-      label: 'Total dias',
-      value: streakData?.totalDays || 0,
-      icon: BookOpen,
+      label: 'Horas totales',
+      value: stats?.summary?.totalHours || 0,
+      icon: Clock,
       color: 'text-violet',
+      sparkColor: '#8730f5',
     },
     {
-      label: 'Sesiones',
-      value: streakData?.totalSessions || 0,
-      icon: Clock,
+      label: 'Clases',
+      value: stats?.summary?.totalClasses || streakData?.totalSessions || 0,
+      icon: BookOpen,
       color: 'text-accent-dim',
     },
   ]
+
+  const last7 = stats?.dailyStudy?.slice(-7) || []
 
   return (
     <div className="px-5 pt-6 pb-4 max-w-md lg:max-w-5xl mx-auto">
@@ -91,18 +125,49 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
           <motion.div
             {...fadeUp}
             transition={{ delay: 0.12 }}
-            className="grid grid-cols-2 gap-3 mb-6"
+            className="grid grid-cols-2 gap-3 mb-5"
           >
-            {stats.map((stat) => (
-              <div key={stat.label} className="card-base p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <stat.icon size={16} className={stat.color} />
-                  <span className="text-xs text-muted">{stat.label}</span>
+            {cards.map((card) => (
+              <div key={card.label} className="card-base p-4 overflow-hidden">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <card.icon size={14} className={card.color} />
+                  <span className="text-xs text-muted">{card.label}</span>
                 </div>
-                <p className="font-heading text-2xl text-foreground">{stat.value}</p>
+                <p className="font-heading text-2xl text-foreground">{card.value}</p>
+                {card.sparkColor && last7.length > 1 && (
+                  <div className="mt-2 -mx-1">
+                    <Sparkline
+                      data={last7}
+                      dataKey={card.label === 'Racha actual' ? 'sessions' : 'minutes'}
+                      color={card.sparkColor}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </motion.div>
+
+          {stats?.weeklyStudy?.length > 0 && (
+            <motion.section {...fadeUp} transition={{ delay: 0.14 }} className="card-base p-4 mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 size={16} className="text-accent-dim" />
+                <h3 className="font-heading text-sm text-muted">Minutos por semana</h3>
+              </div>
+              <WeeklyBarChart data={stats.weeklyStudy} />
+            </motion.section>
+          )}
+
+          {stats?.summary?.avgSessionMin > 0 && (
+            <motion.div {...fadeUp} transition={{ delay: 0.15 }} className="card-base p-4 mb-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Timer size={14} className="text-violet" />
+                <span className="text-xs text-muted">Promedio por sesion</span>
+              </div>
+              <p className="font-heading text-2xl text-foreground">
+                {stats.summary.avgSessionMin} min
+              </p>
+            </motion.div>
+          )}
 
           {leaderboard.length > 1 && (
             <motion.section {...fadeUp} transition={{ delay: 0.16 }} className="card-base p-4">
