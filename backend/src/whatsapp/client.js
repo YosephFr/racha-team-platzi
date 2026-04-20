@@ -72,9 +72,8 @@ export function setupPairingAuth(client, phoneNumber) {
         if (!trimmed) throw new Error('Empty pairing code')
 
         const formatted = trimmed.match(/.{1,4}/g)?.join('-') || trimmed
-        const masked = '****-' + formatted.slice(-4)
         console.log(`\n========================================`)
-        console.log(`[whatsapp] Codigo de emparejamiento: ${masked}`)
+        console.log(`[whatsapp] Codigo de emparejamiento: ${formatted}`)
         console.log(`[whatsapp] Ingresa este codigo en WhatsApp del numero ${cleanNumber}`)
         console.log(`[whatsapp] Intento ${pairingAttempts}/${MAX_PAIRING_ATTEMPTS}`)
         console.log(`========================================\n`)
