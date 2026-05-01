@@ -119,10 +119,12 @@ export function calculateLeaderboardStreak(userId) {
 
   if (!completedDates.size) return 0
 
-  const sorted = [...completedDates].sort()
-  let checkDate = sorted[sorted.length - 1]
-  let streak = 0
+  let checkDate = today
+  if (!completedDates.has(today) && isRequired(today)) {
+    checkDate = addDays(today, -1)
+  }
 
+  let streak = 0
   const MAX_LOOKBACK = 365
   let lookback = 0
 

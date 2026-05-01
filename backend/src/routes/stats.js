@@ -27,7 +27,7 @@ statsRouter.get('/', (req, res) => {
       if (durationMin < 0 || durationMin > 480) durationMin = 0
     }
 
-    const dateKey = s.started_at.split('T')[0] || s.started_at.split(' ')[0]
+    const dateKey = s.started_at.slice(0, 10)
     const existing = dailyStudy.find((d) => d.date === dateKey)
     if (existing) {
       existing.minutes += durationMin
@@ -64,7 +64,9 @@ statsRouter.get('/', (req, res) => {
   const weeklyStudy = buildWeeklyData(dailyStudy, today)
 
   const avgSessionMin =
-    sessions.length > 0 ? Math.round(totalMinutes / sessions.filter((s) => s.completed_at).length) : 0
+    sessions.length > 0
+      ? Math.round(totalMinutes / sessions.filter((s) => s.completed_at).length)
+      : 0
 
   res.json({
     dailyStudy: dailyStudy.slice(-30),
@@ -111,12 +113,14 @@ function buildWeeklyData(dailyStudy, today) {
       }
     }
 
-    const startStr =
-      weekStart.getDate() +
-      '/' +
-      (weekStart.getMonth() + 1)
+    const startStr = weekStart.getDate() + '/' + (weekStart.getMonth() + 1)
 
-    weeks.push({ label: `Sem ${startStr}`, minutes: weekMinutes, classes: weekClasses, sessions: weekSessions })
+    weeks.push({
+      label: `Sem ${startStr}`,
+      minutes: weekMinutes,
+      classes: weekClasses,
+      sessions: weekSessions,
+    })
   }
 
   return weeks

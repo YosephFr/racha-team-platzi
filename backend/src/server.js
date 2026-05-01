@@ -3,7 +3,7 @@ import cors from 'cors'
 import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
 import multer from 'multer'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import { randomUUID } from 'crypto'
 import { mkdirSync } from 'fs'
 import { config } from './config.js'
@@ -101,7 +101,7 @@ app.get('/health', (_req, res) => {
 const apiLimiter = rateLimit({
   windowMs: 60_000,
   max: 60,
-  keyGenerator: (req) => req.user?.userId || req.ip,
+  keyGenerator: (req) => req.user?.userId?.toString() || ipKeyGenerator(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -109,7 +109,7 @@ const apiLimiter = rateLimit({
 const costlyLimiter = rateLimit({
   windowMs: 60_000,
   max: 20,
-  keyGenerator: (req) => req.user?.userId || req.ip,
+  keyGenerator: (req) => req.user?.userId?.toString() || ipKeyGenerator(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -117,7 +117,7 @@ const costlyLimiter = rateLimit({
 const studyLimiter = rateLimit({
   windowMs: 60_000,
   max: 5,
-  keyGenerator: (req) => req.user?.userId || req.ip,
+  keyGenerator: (req) => req.user?.userId?.toString() || ipKeyGenerator(req.ip),
   standardHeaders: true,
   legacyHeaders: false,
 })

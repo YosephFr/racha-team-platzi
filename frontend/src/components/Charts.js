@@ -175,11 +175,12 @@ export function ClassesBarChart({ data }) {
 
 export function Sparkline({ data, dataKey, color, height = 32 }) {
   if (!data?.length) return null
+  const gradId = `spark-${dataKey}-${color.replace('#', '')}`
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data}>
         <defs>
-          <linearGradient id={`spark-${color}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.25} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
@@ -189,7 +190,7 @@ export function Sparkline({ data, dataKey, color, height = 32 }) {
           dataKey={dataKey}
           stroke={color}
           strokeWidth={1.5}
-          fill={`url(#spark-${color})`}
+          fill={`url(#${gradId})`}
           animationDuration={600}
           dot={false}
         />

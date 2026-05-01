@@ -3,15 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import dynamic from 'next/dynamic'
-import {
-  TrendingUp,
-  BookOpen,
-  Clock,
-  Trophy,
-  ChevronRight,
-  BarChart3,
-  Timer,
-} from 'lucide-react'
+import { TrendingUp, BookOpen, Clock, Trophy, ChevronRight, BarChart3, Timer } from 'lucide-react'
 import StreakMascot from './StreakMascot'
 import { api } from '@/lib/api'
 import { getStreakLevel } from '@/lib/utils'
@@ -35,7 +27,10 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
   const [stats, setStats] = useState(null)
 
   useEffect(() => {
-    api.getStats().then(setStats).catch(() => {})
+    api
+      .getStats()
+      .then(setStats)
+      .catch(() => {})
   }, [])
 
   const cards = [
@@ -45,12 +40,15 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
       icon: TrendingUp,
       color: 'text-accent-dim',
       sparkColor: '#98ca3f',
+      sparkKey: 'sessions',
     },
     {
       label: 'Mejor racha',
       value: streakData?.bestStreak || 0,
       icon: Trophy,
       color: 'text-streak-2',
+      sparkColor: '#f59e0b',
+      sparkKey: 'sessions',
     },
     {
       label: 'Horas totales',
@@ -58,12 +56,15 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
       icon: Clock,
       color: 'text-violet',
       sparkColor: '#8730f5',
+      sparkKey: 'minutes',
     },
     {
       label: 'Clases',
       value: stats?.summary?.totalClasses || streakData?.totalSessions || 0,
       icon: BookOpen,
       color: 'text-accent-dim',
+      sparkColor: '#98ca3f',
+      sparkKey: 'classes',
     },
   ]
 
@@ -138,7 +139,7 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
                   <div className="mt-2 -mx-1">
                     <Sparkline
                       data={last7}
-                      dataKey={card.label === 'Racha actual' ? 'sessions' : 'minutes'}
+                      dataKey={card.sparkKey || 'minutes'}
                       color={card.sparkColor}
                     />
                   </div>
