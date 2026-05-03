@@ -30,6 +30,42 @@ if (!process.env.JWT_SECRET) {
   process.exit(1)
 }
 
+const VALID_CHAT_PROVIDERS = ['openai', 'deepseek']
+const VALID_VISION_PROVIDERS = ['openai', 'gemini']
+
+const chatProvider = (process.env.AI_CHAT_PROVIDER || 'openai').toLowerCase()
+const visionProvider = (process.env.AI_VISION_PROVIDER || 'openai').toLowerCase()
+
+if (!VALID_CHAT_PROVIDERS.includes(chatProvider)) {
+  console.error(
+    `FATAL: AI_CHAT_PROVIDER invalido: "${chatProvider}". Opciones: ${VALID_CHAT_PROVIDERS.join(', ')}`
+  )
+  process.exit(1)
+}
+if (!VALID_VISION_PROVIDERS.includes(visionProvider)) {
+  console.error(
+    `FATAL: AI_VISION_PROVIDER invalido: "${visionProvider}". Opciones: ${VALID_VISION_PROVIDERS.join(', ')}`
+  )
+  process.exit(1)
+}
+
+if (chatProvider === 'openai' && !process.env.OPENAI_API_KEY) {
+  console.error('FATAL: AI_CHAT_PROVIDER=openai requiere OPENAI_API_KEY')
+  process.exit(1)
+}
+if (chatProvider === 'deepseek' && !process.env.DEEPSEEK_API_KEY) {
+  console.error('FATAL: AI_CHAT_PROVIDER=deepseek requiere DEEPSEEK_API_KEY')
+  process.exit(1)
+}
+if (visionProvider === 'openai' && !process.env.OPENAI_API_KEY) {
+  console.error('FATAL: AI_VISION_PROVIDER=openai requiere OPENAI_API_KEY')
+  process.exit(1)
+}
+if (visionProvider === 'gemini' && !process.env.GEMINI_API_KEY) {
+  console.error('FATAL: AI_VISION_PROVIDER=gemini requiere GEMINI_API_KEY')
+  process.exit(1)
+}
+
 export const config = {
   port: Number(process.env.BACKEND_PORT) || 4036,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:4035',
@@ -43,11 +79,26 @@ export const config = {
   db: {
     path: process.env.DATABASE_PATH || './data/racha.db',
   },
+  ai: {
+    chatProvider,
+    visionProvider,
+  },
   openai: {
     apiKey: process.env.OPENAI_API_KEY,
     visionModel: process.env.OPENAI_VISION_MODEL || 'gpt-4o',
     chatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-5.4-mini',
     reasoningEffort: process.env.OPENAI_REASONING_EFFORT || 'medium',
+  },
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+    chatModel: process.env.DEEPSEEK_CHAT_MODEL || 'deepseek-v4-flash',
+    maxTokens: process.env.DEEPSEEK_MAX_TOKENS ? Number(process.env.DEEPSEEK_MAX_TOKENS) : null,
+  },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+    baseUrl: process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+    visionModel: process.env.GEMINI_VISION_MODEL || 'gemini-2.5-flash',
   },
   elevenlabs: {
     apiKey: process.env.ELEVENLABS_API_KEY,

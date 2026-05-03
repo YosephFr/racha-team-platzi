@@ -12,15 +12,15 @@ A mobile-first PWA that helps a group of friends maintain their daily study stre
 
 ## Stack
 
-| Layer             | Technology                                                               |
-| ----------------- | ------------------------------------------------------------------------ |
-| Frontend          | Next.js 15 (App Router), React 19, Tailwind CSS 3, Motion, Serwist PWA   |
-| Backend           | Node.js, Express 5 (ESM), SQLite (better-sqlite3, WAL mode)              |
-| AI Vision         | GPT-4o - Screenshot analysis with EXIF metadata extraction               |
-| AI Conversational | GPT-5.4 Mini - Agentic tool loop via OpenAI Responses API                |
-| Voice             | ElevenLabs TTS, OpenAI Whisper STT                                       |
-| WhatsApp          | whatsapp-web.js with pairing code auth, health checks, graceful shutdown |
-| Auth              | Google OAuth 2.0, JWT in HttpOnly cookies (30-day expiry)                |
+| Layer             | Technology                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Frontend          | Next.js 15 (App Router), React 19, Tailwind CSS 3, Motion, Serwist PWA                                                    |
+| Backend           | Node.js, Express 5 (ESM), SQLite (better-sqlite3, WAL mode)                                                               |
+| AI Vision         | Pluggable: OpenAI GPT-4o (default) or Google Gemini 2.5 — screenshot analysis with EXIF metadata extraction               |
+| AI Conversational | Pluggable: OpenAI GPT-5.4 Mini via Responses API (default) or DeepSeek V4 (Flash/Pro) via Chat Completions — agentic loop |
+| Voice             | ElevenLabs TTS, OpenAI Whisper STT                                                                                        |
+| WhatsApp          | whatsapp-web.js with pairing code auth, health checks, graceful shutdown                                                  |
+| Auth              | Google OAuth 2.0, JWT in HttpOnly cookies (30-day expiry)                                                                 |
 
 ## Architecture
 
@@ -122,17 +122,36 @@ Required variables:
 
 Optional variables:
 
-| Variable              | Description                                    |
-| --------------------- | ---------------------------------------------- |
-| `WA_PRIMARY_PHONE`    | WhatsApp number for pairing code auth          |
-| `WA_NOTIFY_TARGETS`   | WhatsApp group ID for notifications            |
-| `ELEVENLABS_API_KEY`  | For text-to-speech                             |
-| `ELEVENLABS_VOICE_ID` | ElevenLabs voice to use                        |
-| `STREAK_RESET_HOUR`   | Hour at which streaks reset (default: 4 AM)    |
-| `CORS_ORIGINS`        | Comma-separated allowed origins                |
-| `BYPASS_OAUTH`        | Set to `true` to enable email login (dev only) |
+| Variable              | Description                                                                  |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `AI_CHAT_PROVIDER`    | `openai` (default) or `deepseek` — drives the agentic chat/heartbeat loop    |
+| `AI_VISION_PROVIDER`  | `openai` (default) or `gemini` — drives screenshot + certificate analysis   |
+| `DEEPSEEK_API_KEY`    | Required when `AI_CHAT_PROVIDER=deepseek`                                    |
+| `DEEPSEEK_CHAT_MODEL` | `deepseek-v4-flash` (default) or `deepseek-v4-pro`                           |
+| `GEMINI_API_KEY`      | Required when `AI_VISION_PROVIDER=gemini`                                    |
+| `GEMINI_VISION_MODEL` | `gemini-2.5-flash` (default), `gemini-2.5-pro`, or `gemini-2.5-flash-lite`   |
+| `WA_PRIMARY_PHONE`    | WhatsApp number for pairing code auth                                        |
+| `WA_NOTIFY_TARGETS`   | WhatsApp group ID for notifications                                          |
+| `ELEVENLABS_API_KEY`  | For text-to-speech                                                           |
+| `ELEVENLABS_VOICE_ID` | ElevenLabs voice to use                                                      |
+| `STREAK_RESET_HOUR`   | Hour at which streaks reset (default: 4 AM)                                  |
+| `CORS_ORIGINS`        | Comma-separated allowed origins                                              |
+| `BYPASS_OAUTH`        | Set to `true` to enable email login (dev only)                               |
 
 See `.env.example` for the full list.
+
+### AI providers
+
+Chat and vision are split into independent provider slots so they can be mixed.
+
+| Slot           | Provider   | Model defaults                              | Notes                                                                                              |
+| -------------- | ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Chat / agent   | `openai`   | `gpt-5.4-mini` (Responses API)              | Default. Server-side conversation persistence via OpenAI Conversations API.                        |
+| Chat / agent   | `deepseek` | `deepseek-v4-flash` or `deepseek-v4-pro`    | Chat Completions standard. No vision; the engine pre-analyzes images via the vision provider.      |
+| Vision / image | `openai`   | `gpt-4o`                                    | Default. Chat Completions vision with base64 images.                                               |
+| Vision / image | `gemini`   | `gemini-2.5-flash` (also `-pro`, `-lite`)   | `generateContent` with `inline_data` and JSON-mode output for structured fields.                   |
+
+Switching is a no-code change: set `AI_CHAT_PROVIDER` / `AI_VISION_PROVIDER` and the matching API key. The backend fails fast at startup if a configured provider is missing its key. OpenAI remains the default for both slots, so existing deployments don't need to change anything.
 
 ### Development
 

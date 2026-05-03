@@ -1,15 +1,4 @@
-import {
-  initConversation,
-  initChatConversation,
-  createEphemeralConversation,
-  buildInput,
-  buildImageInput,
-  callResponses,
-  extractText,
-  extractToolCalls,
-  formatToolResult,
-  analyzeImageDataUrl,
-} from './provider.js'
+import { getChatProvider, getVisionProvider } from './providers/index.js'
 import { getToolDefinitions } from './tools/definitions.js'
 import { handleToolCall } from './tools/handlers.js'
 
@@ -75,109 +64,87 @@ FLUJO OBLIGATORIO:
 
 Responde de forma breve y directa. Maximo 2 oraciones. Sin markdown.`
 
-async function executeFlow(conversation, systemPrompt, userMessage, context, tools) {
-  let currentInput
+async function preAnalyzeImage(image) {
+  if (!image) return null
+  try {
+    const visionProvider = getVisionProvider()
+    console.log(`[ai] Pre-analyzing image with vision provider "${visionProvider.name}"...`)
+    const text = await visionProvider.analyzeImageDataUrl(image)
+    console.log('[ai] Vision pre-analysis:', (text || '').slice(0, 200))
+    return text
+  } catch (err) {
+    console.error('[ai] Vision pre-analysis failed:', err.message)
+    return null
+  }
+}
 
-  if (context.image) {
-    currentInput = buildImageInput(systemPrompt, userMessage, context.image)
-  } else {
-    currentInput = buildInput(systemPrompt, userMessage)
+async function dispatchFlow({ systemPrompt, userMessage, image, conversation, context }) {
+  const chatProvider = getChatProvider()
+
+  let effectiveMessage = userMessage
+  let effectiveImage = image
+
+  if (image && !chatProvider.supportsVisionInChat) {
+    const visionText = await preAnalyzeImage(image)
+    effectiveMessage = visionText
+      ? `${userMessage}\n\n[Analisis de la imagen enviada por el usuario]:\n${visionText}`
+      : `${userMessage}\n\n[El usuario envio una imagen pero no se pudo analizar]`
+    effectiveImage = null
+  } else if (image && chatProvider.supportsVisionInChat) {
+    const visionText = await preAnalyzeImage(image)
+    if (visionText) {
+      effectiveMessage = `${userMessage}\n\n[Analisis de la imagen enviada por el usuario]:\n${visionText}`
+    }
+    effectiveImage = null
   }
 
-  let iterations = 0
-  const toolResults = []
-  let finalText = ''
-  const seenSignatures = new Set()
-
-  while (iterations < MAX_ITERATIONS) {
-    iterations++
-    console.log(`[ai] Iteration ${iterations}, sending to model...`)
-
-    const response = await callResponses(currentInput, conversation, tools)
-    const toolCalls = extractToolCalls(response)
-
-    console.log(
-      `[ai] Response: ${toolCalls.length} tool calls, text: "${(extractText(response) || '').slice(0, 100)}"`
-    )
-
-    if (!toolCalls.length) {
-      finalText = extractText(response)
-      break
-    }
-
-    const signature = toolCalls.map((c) => `${c.name}:${c.arguments}`).join('|')
-    if (seenSignatures.has(signature)) {
-      console.warn('[ai] Tool call loop detected, breaking')
-      finalText = extractText(response) || 'Listo, todo procesado.'
-      break
-    }
-    seenSignatures.add(signature)
-
-    const results = []
-    for (const call of toolCalls) {
-      const args = typeof call.arguments === 'string' ? JSON.parse(call.arguments) : call.arguments
-      console.log(`[ai] Tool call: ${call.name}(${JSON.stringify(args)})`)
-      const result = await handleToolCall(call.name, args, {
-        userId: conversation.userId,
-        ...context,
-      })
-      console.log(`[ai] Tool result: ${call.name} ->`, JSON.stringify(result).slice(0, 200))
-      toolResults.push({ tool: call.name, args, result })
-      results.push(formatToolResult(call.call_id, result))
-    }
-
-    currentInput = results
-  }
-
-  console.log(
-    `[ai] Flow complete: ${iterations} iterations, ${toolResults.length} tool calls, text: "${finalText.slice(0, 100)}"`
-  )
-
-  return {
-    message: finalText,
-    toolResults,
-    iterations,
-  }
+  return chatProvider.runFlow({
+    systemPrompt,
+    userMessage: effectiveMessage,
+    image: effectiveImage,
+    tools: getToolDefinitions(),
+    conversation,
+    context,
+    handleToolCall,
+    maxIterations: MAX_ITERATIONS,
+  })
 }
 
 export async function runAIFlow(userId, userMessage, context = {}, chatConversationId = null) {
-  let conversation
-  if (chatConversationId) {
-    conversation = await initChatConversation(userId, chatConversationId)
-  } else {
-    conversation = await initConversation(userId)
-  }
-  conversation.userId = userId
-
-  if (context.image) {
-    console.log('[ai] Image detected in context, analyzing with vision...')
-    try {
-      const visionText = await analyzeImageDataUrl(context.image)
-      console.log('[ai] Vision analysis:', visionText.slice(0, 200))
-      userMessage = `${userMessage}\n\n[Analisis de la imagen enviada por el usuario]:\n${visionText}`
-      delete context.image
-    } catch (err) {
-      console.error('[ai] Vision analysis failed:', err.message)
-      userMessage = `${userMessage}\n\n[El usuario envio una imagen pero no se pudo analizar]`
-      delete context.image
-    }
-  }
-
-  const tools = getToolDefinitions()
-  return executeFlow(conversation, SYSTEM_PROMPT, userMessage, context, tools)
+  const conversation = { userId, chatConversationId, ephemeral: false }
+  const image = context.image || null
+  const cleanContext = { ...context }
+  delete cleanContext.image
+  return dispatchFlow({
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage,
+    image,
+    conversation,
+    context: { userId, ...cleanContext },
+  })
 }
 
 export async function runHeartbeat(userId, systemMessage) {
-  const conversation = await initConversation(userId)
-  conversation.userId = userId
-  const tools = getToolDefinitions()
-  return executeFlow(conversation, SYSTEM_PROMPT, systemMessage, {}, tools)
+  const conversation = { userId, chatConversationId: null, ephemeral: false }
+  return dispatchFlow({
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage: systemMessage,
+    image: null,
+    conversation,
+    context: { userId },
+  })
 }
 
 export async function runStudyFlow(userId, userMessage, context = {}) {
-  const conversation = await createEphemeralConversation(userId)
-  conversation.userId = userId
-
-  const tools = getToolDefinitions()
-  return executeFlow(conversation, STUDY_SYSTEM_PROMPT, userMessage, context, tools)
+  const conversation = { userId, chatConversationId: null, ephemeral: true }
+  const image = context.image || null
+  const cleanContext = { ...context }
+  delete cleanContext.image
+  return dispatchFlow({
+    systemPrompt: STUDY_SYSTEM_PROMPT,
+    userMessage,
+    image,
+    conversation,
+    context: { userId, ...cleanContext },
+  })
 }
