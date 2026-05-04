@@ -93,6 +93,7 @@ export const config = {
     apiKey: process.env.DEEPSEEK_API_KEY || '',
     baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
     chatModel: process.env.DEEPSEEK_CHAT_MODEL || 'deepseek-v4-flash',
+    reasoningEffort: process.env.DEEPSEEK_REASONING_EFFORT || null,
     maxTokens: process.env.DEEPSEEK_MAX_TOKENS ? Number(process.env.DEEPSEEK_MAX_TOKENS) : null,
   },
   gemini: {

@@ -55,6 +55,9 @@ async function callChatCompletions(messages, tools) {
     tool_choice: 'auto',
     stream: false,
   }
+  if (config.deepseek.reasoningEffort) {
+    body.reasoning_effort = config.deepseek.reasoningEffort
+  }
   if (config.deepseek.maxTokens) body.max_tokens = config.deepseek.maxTokens
 
   const res = await fetch(url, {
