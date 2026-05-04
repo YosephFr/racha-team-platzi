@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, Flame, MessageCircle, User } from 'lucide-react'
+import { Home, Flame, Award, User } from 'lucide-react'
 import StreakFireButton from './StreakFireButton'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +8,7 @@ const tabs = [
   { id: 'home', icon: Home, label: 'Inicio' },
   { id: 'racha', icon: Flame, label: 'Racha' },
   { id: 'study', icon: null, label: '' },
-  { id: 'chat', icon: MessageCircle, label: 'Indi' },
+  { id: 'certificates', icon: Award, label: 'Certificados' },
   { id: 'profile', icon: User, label: 'Perfil' },
 ]
 

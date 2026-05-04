@@ -16,7 +16,7 @@ import {
   Trash2,
   Check,
   Globe,
-  Award,
+  MessageCircle,
   ChevronRight,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -194,15 +194,15 @@ export default function ProfileTab({ user, streakData, onLogout, onTabChange }) 
         <motion.button
           {...fadeUp}
           transition={{ delay: 0.1 }}
-          onClick={() => onTabChange('certificates')}
+          onClick={() => onTabChange('chat')}
           className="card-base p-4 mb-5 flex items-center gap-3 w-full text-left active:scale-[0.98] transition-transform lg:hidden"
         >
-          <div className="w-10 h-10 rounded-2xl bg-violet/10 flex items-center justify-center shrink-0">
-            <Award size={20} className="text-violet" />
+          <div className="w-10 h-10 rounded-2xl bg-accent/10 flex items-center justify-center shrink-0">
+            <MessageCircle size={20} className="text-accent-dim" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-heading text-sm text-foreground">Mis Certificados</p>
-            <p className="text-xs text-muted">Tu coleccion de cursos completados</p>
+            <p className="font-heading text-sm text-foreground">Indi</p>
+            <p className="text-xs text-muted">Chatea con tu asistente de estudio</p>
           </div>
           <ChevronRight size={18} className="text-muted shrink-0" />
         </motion.button>
