@@ -37,7 +37,7 @@ export function useUpdateChecker() {
     }
     if (manual) setChecking(true)
     try {
-      const res = await fetch('/api/version', { cache: 'no-store' })
+      const res = await fetch('/version', { cache: 'no-store' })
       if (!res.ok) return false
       const data = await res.json()
       if (data?.buildId && data.buildId !== BUILD_ID) {
