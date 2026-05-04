@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import dynamic from 'next/dynamic'
 import { TrendingUp, BookOpen, Clock, Trophy, ChevronRight, BarChart3, Timer } from 'lucide-react'
 import StreakMascot from './StreakMascot'
+import UpdateBell from './UpdateBell'
 import { api } from '@/lib/api'
 import { getStreakLevel } from '@/lib/utils'
 
@@ -83,18 +84,21 @@ export default function HomeTab({ user, streak, streakData, leaderboard, onStudy
           <p className="text-sm text-muted">Hola,</p>
           <h1 className="font-heading text-xl text-foreground">{user?.name || 'Estudiante'}</h1>
         </div>
-        <button
-          onClick={() => onTabChange('profile')}
-          className="w-10 h-10 rounded-full bg-surface flex items-center justify-center overflow-hidden border-2 border-accent lg:hidden"
-        >
-          {user?.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-sm font-semibold text-muted">
-              {(user?.name || 'U')[0].toUpperCase()}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <UpdateBell variant="floating" />
+          <button
+            onClick={() => onTabChange('profile')}
+            className="w-10 h-10 rounded-full bg-surface flex items-center justify-center overflow-hidden border-2 border-accent"
+          >
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-sm font-semibold text-muted">
+                {(user?.name || 'U')[0].toUpperCase()}
+              </span>
+            )}
+          </button>
+        </div>
       </motion.header>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">

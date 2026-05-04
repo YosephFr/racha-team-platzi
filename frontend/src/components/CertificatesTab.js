@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { api, getApiUrl } from '@/lib/api'
 import { compressImage } from '@/lib/utils'
+import UpdateBell from './UpdateBell'
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -49,7 +50,11 @@ function CertificateCard({ cert, onClick }) {
       className="card-base overflow-hidden text-left w-full active:scale-[0.97] transition-transform"
     >
       <div className="aspect-[4/3] bg-surface relative overflow-hidden">
-        <img src={imageUrl} alt={cert.course_name || 'Certificado'} className="w-full h-full object-cover" />
+        <img
+          src={imageUrl}
+          alt={cert.course_name || 'Certificado'}
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         <div className="absolute bottom-2 left-2 right-2">
           <p className="text-white text-xs font-semibold truncate drop-shadow-sm">
@@ -93,7 +98,11 @@ function CertificateDetail({ cert, onBack, onDelete }) {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+    >
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm text-muted mb-4 active:opacity-60"
@@ -103,11 +112,7 @@ function CertificateDetail({ cert, onBack, onDelete }) {
 
       <div className="card-base overflow-hidden mb-4">
         <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="block">
-          <img
-            src={imageUrl}
-            alt={cert.course_name || 'Certificado'}
-            className="w-full h-auto"
-          />
+          <img src={imageUrl} alt={cert.course_name || 'Certificado'} className="w-full h-auto" />
         </a>
       </div>
 
@@ -245,12 +250,17 @@ export default function CertificatesTab() {
                   <p className="text-xs text-muted mt-0.5">{certificates.length} obtenidos</p>
                 )}
               </div>
-              <button
-                onClick={startUpload}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-violet text-white text-sm font-semibold active:scale-[0.97] transition-transform"
-              >
-                <Plus size={16} /> Subir
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="lg:hidden">
+                  <UpdateBell variant="floating" />
+                </div>
+                <button
+                  onClick={startUpload}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-violet text-white text-sm font-semibold active:scale-[0.97] transition-transform"
+                >
+                  <Plus size={16} /> Subir
+                </button>
+              </div>
             </div>
 
             {loading ? (
@@ -295,7 +305,11 @@ export default function CertificatesTab() {
             )}
 
             {ranking.length > 1 && (
-              <motion.section {...fadeUp} transition={{ delay: 0.1 }} className="card-base p-4 mt-4">
+              <motion.section
+                {...fadeUp}
+                transition={{ delay: 0.1 }}
+                className="card-base p-4 mt-4"
+              >
                 <div className="flex items-center gap-2 mb-3">
                   <Trophy size={16} className="text-violet" />
                   <h3 className="font-heading text-sm text-muted">
@@ -305,7 +319,9 @@ export default function CertificatesTab() {
                 <div className="space-y-2.5">
                   {ranking.map((u, i) => (
                     <div key={u.id} className="flex items-center gap-3">
-                      <span className="w-6 text-center text-sm font-medium text-muted">{i + 1}</span>
+                      <span className="w-6 text-center text-sm font-medium text-muted">
+                        {i + 1}
+                      </span>
                       <div className="w-7 h-7 rounded-full bg-surface flex items-center justify-center text-xs font-semibold text-muted overflow-hidden border border-border">
                         {u.avatarUrl ? (
                           <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -326,7 +342,10 @@ export default function CertificatesTab() {
         {view === 'upload' && (
           <motion.div key="upload" {...fadeUp}>
             <button
-              onClick={() => { setView('grid'); clearUpload() }}
+              onClick={() => {
+                setView('grid')
+                clearUpload()
+              }}
               className="flex items-center gap-1.5 text-sm text-muted mb-4 active:opacity-60"
             >
               <ArrowLeft size={16} /> Volver
@@ -376,7 +395,11 @@ export default function CertificatesTab() {
                   <div>
                     {preview && (
                       <div className="relative rounded-2xl overflow-hidden border border-border mb-4">
-                        <img src={preview} alt="Analizando" className="w-full h-auto max-h-[300px] object-cover" />
+                        <img
+                          src={preview}
+                          alt="Analizando"
+                          className="w-full h-auto max-h-[300px] object-cover"
+                        />
                         <ScannerOverlay />
                       </div>
                     )}
@@ -386,12 +409,21 @@ export default function CertificatesTab() {
                     </div>
                   </div>
                 ) : (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
                     <div className="relative rounded-2xl overflow-hidden border border-border mb-3">
-                      <img src={preview} alt="Vista previa" className="w-full h-auto max-h-[300px] object-cover" />
+                      <img
+                        src={preview}
+                        alt="Vista previa"
+                        className="w-full h-auto max-h-[300px] object-cover"
+                      />
                     </div>
                     {error && (
-                      <div className="bg-danger/10 text-danger text-sm p-3 rounded-xl mb-3">{error}</div>
+                      <div className="bg-danger/10 text-danger text-sm p-3 rounded-xl mb-3">
+                        {error}
+                      </div>
                     )}
                     <div className="flex gap-2.5">
                       <button
@@ -444,7 +476,10 @@ export default function CertificatesTab() {
                 )}
 
                 <button
-                  onClick={() => { setView('grid'); clearUpload() }}
+                  onClick={() => {
+                    setView('grid')
+                    clearUpload()
+                  }}
                   className="w-full py-4 rounded-2xl bg-violet text-white font-semibold active:scale-[0.97] transition-transform"
                 >
                   Ver mis certificados

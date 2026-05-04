@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { getStreakLevel, getStreakLabel } from '@/lib/utils'
+import UpdateBell from './UpdateBell'
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -134,9 +135,12 @@ export default function ProfileTab({ user, streakData, onLogout, onTabChange }) 
     <div className="px-5 pt-6 pb-4 max-w-md lg:max-w-4xl mx-auto">
       <div className="bg-mesh" />
 
-      <motion.h1 {...fadeUp} className="font-heading text-xl mb-5">
-        Perfil
-      </motion.h1>
+      <motion.div {...fadeUp} className="flex items-center justify-between mb-5">
+        <h1 className="font-heading text-xl">Perfil</h1>
+        <div className="lg:hidden">
+          <UpdateBell variant="floating" />
+        </div>
+      </motion.div>
 
       <div className="lg:grid lg:grid-cols-[1fr_1fr] lg:gap-6 lg:items-start">
         <div>
@@ -189,7 +193,7 @@ export default function ProfileTab({ user, streakData, onLogout, onTabChange }) 
       {onTabChange && (
         <motion.button
           {...fadeUp}
-          transition={{ delay: 0.10 }}
+          transition={{ delay: 0.1 }}
           onClick={() => onTabChange('certificates')}
           className="card-base p-4 mb-5 flex items-center gap-3 w-full text-left active:scale-[0.98] transition-transform lg:hidden"
         >

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import StreakMascot from './StreakMascot'
+import UpdateBell from './UpdateBell'
 
 function ConfettiPiece({ delay, color }) {
   const left = Math.random() * 100
@@ -261,21 +262,26 @@ export default function StudyTab({ onComplete, todayCompleted }) {
         </motion.div>
       )}
 
-      <motion.h1
+      <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="font-heading text-xl mb-5"
+        className="flex items-center justify-between mb-5"
       >
-        {phase === 'loading'
-          ? 'Cargando...'
-          : phase === 'studying'
-            ? 'Estudiando...'
-            : isEnd
-              ? 'Terminar sesion'
-              : isExtraSession
-                ? 'Sesion adicional'
-                : 'Iniciar estudio'}
-      </motion.h1>
+        <h1 className="font-heading text-xl">
+          {phase === 'loading'
+            ? 'Cargando...'
+            : phase === 'studying'
+              ? 'Estudiando...'
+              : isEnd
+                ? 'Terminar sesion'
+                : isExtraSession
+                  ? 'Sesion adicional'
+                  : 'Iniciar estudio'}
+        </h1>
+        <div className="lg:hidden">
+          <UpdateBell variant="floating" />
+        </div>
+      </motion.div>
 
       <AnimatePresence mode="wait">
         {phase === 'loading' && (

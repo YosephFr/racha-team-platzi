@@ -150,10 +150,6 @@ export default function DashboardPage() {
       </aside>
 
       <div className="flex-1 flex flex-col min-h-dvh lg:ml-60">
-        <div className="lg:hidden fixed top-3 right-3 z-40">
-          <UpdateBell variant="floating" />
-        </div>
-
         <main
           ref={mainRef}
           className="flex-1 overflow-y-auto overflow-x-hidden pb-nav-safe lg:pb-0"

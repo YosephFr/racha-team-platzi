@@ -16,6 +16,7 @@ import {
   Timer,
 } from 'lucide-react'
 import StreakCalendar from './StreakCalendar'
+import UpdateBell from './UpdateBell'
 import { api } from '@/lib/api'
 import { cn, formatRelativeTime } from '@/lib/utils'
 
@@ -56,7 +57,10 @@ export default function RachaTab({ streakData }) {
       .then((d) => setSessions(d.sessions || []))
       .catch(() => {})
       .finally(() => setLoadingSessions(false))
-    api.getStats().then(setStats).catch(() => {})
+    api
+      .getStats()
+      .then(setStats)
+      .catch(() => {})
   }, [])
 
   const statCards = [
@@ -101,9 +105,12 @@ export default function RachaTab({ streakData }) {
     <div className="px-5 pt-6 pb-4 max-w-md lg:max-w-5xl mx-auto">
       <div className="bg-mesh" />
 
-      <motion.h1 {...fadeUp} className="font-heading text-xl mb-5">
-        Tu Racha
-      </motion.h1>
+      <motion.div {...fadeUp} className="flex items-center justify-between mb-5">
+        <h1 className="font-heading text-xl">Tu Racha</h1>
+        <div className="lg:hidden">
+          <UpdateBell variant="floating" />
+        </div>
+      </motion.div>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         <div className="space-y-5">
@@ -151,11 +158,7 @@ export default function RachaTab({ streakData }) {
         </div>
 
         <div className="space-y-5 mt-5 lg:mt-0">
-          <motion.div
-            {...fadeUp}
-            transition={{ delay: 0.08 }}
-            className="grid grid-cols-2 gap-3"
-          >
+          <motion.div {...fadeUp} transition={{ delay: 0.08 }} className="grid grid-cols-2 gap-3">
             {statCards.map((stat) => (
               <div key={stat.label} className="card-base p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -168,7 +171,7 @@ export default function RachaTab({ streakData }) {
           </motion.div>
 
           {stats?.courses?.length > 0 && (
-            <motion.section {...fadeUp} transition={{ delay: 0.10 }} className="card-base p-4">
+            <motion.section {...fadeUp} transition={{ delay: 0.1 }} className="card-base p-4">
               <div className="flex items-center gap-2 mb-3">
                 <PieIcon size={16} className="text-violet" />
                 <h3 className="font-heading text-sm text-muted">Cursos estudiados</h3>

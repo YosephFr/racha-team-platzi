@@ -27,6 +27,7 @@ import {
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import ChatDrawer from './ChatDrawer'
+import UpdateBell from './UpdateBell'
 
 const SUGGESTIONS = [
   { icon: TrendingUp, text: 'Como va mi racha?' },
@@ -476,8 +477,13 @@ export default function ChatTab() {
               <p className="text-[11px] text-muted">Tu asistente de estudio</p>
             </div>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center shadow-sm shadow-accent/20">
-            <Bot size={16} className="text-white" />
+          <div className="flex items-center gap-2">
+            <div className="lg:hidden">
+              <UpdateBell variant="floating" />
+            </div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center shadow-sm shadow-accent/20">
+              <Bot size={16} className="text-white" />
+            </div>
           </div>
         </header>
 
