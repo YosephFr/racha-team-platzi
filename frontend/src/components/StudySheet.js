@@ -100,6 +100,38 @@ export default function StudySheet({ onClose }) {
     }
   }, [selectedFile, processing])
 
+  const handleEndSession = useCallback(async () => {
+    if (processing) return
+    setProcessing(true)
+    setAiMessage('')
+
+    try {
+      const data = await api.endStudy()
+      const streak = data.streak?.currentStreak ?? 0
+      const already = data.streak?.alreadyCompleted
+      const courseLabel = activeSession?.start_course || 'tu curso'
+      const message = already
+        ? `Sesion cerrada. Hoy tu racha ya estaba completa.`
+        : streak > 1
+          ? `Listo. Cerraste ${courseLabel} y completaste tu racha de ${streak} dias.`
+          : `Listo. Cerraste ${courseLabel} y arrancaste tu racha.`
+
+      setAiMessage(message)
+      setResult({ action: 'completed', validated: true })
+      setPhase('result')
+      if (!already) {
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 3000)
+      }
+    } catch (err) {
+      setAiMessage(err.message || 'No se pudo cerrar la sesion')
+      setResult({ action: 'error' })
+      setPhase('result')
+    } finally {
+      setProcessing(false)
+    }
+  }, [activeSession, processing])
+
   const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
   const isEnd = !!activeSession
 
@@ -131,7 +163,7 @@ export default function StudySheet({ onClose }) {
       >
         <header className="shrink-0 px-5 pt-5 pb-3 flex items-center justify-between">
           <h1 className="font-heading text-lg">
-            {phase === 'loading' ? 'Cargando...' : isEnd ? 'Completar sesion' : 'Iniciar estudio'}
+            {phase === 'loading' ? 'Cargando...' : isEnd ? 'Terminar sesion' : 'Iniciar estudio'}
           </h1>
           <button
             onClick={onClose}
@@ -160,7 +192,40 @@ export default function StudySheet({ onClose }) {
                 </motion.div>
               )}
 
-              {phase === 'capture' && !processing && (
+              {phase === 'capture' && !processing && isEnd && (
+                <motion.div
+                  key="end"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                >
+                  <div className="card-base p-6 text-center mb-4 mt-4">
+                    <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle size={28} className="text-accent-dim" />
+                    </div>
+                    <h2 className="font-heading text-lg mb-1.5">Terminar sesion</h2>
+                    <p className="text-sm text-muted leading-relaxed">
+                      {`Vas a cerrar tu sesion en ${activeSession?.start_course || 'tu curso'}. Tu racha del dia se marca como completada.`}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleEndSession}
+                    className="w-full h-12 rounded-2xl bg-accent text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform glow-accent"
+                  >
+                    <CheckCircle size={16} />
+                    Terminar sesion
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 mt-2 rounded-2xl text-sm text-muted hover:text-foreground transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </motion.div>
+              )}
+
+              {phase === 'capture' && !processing && !isEnd && (
                 <motion.div
                   key="capture"
                   initial={{ opacity: 0, y: 16 }}
@@ -169,19 +234,11 @@ export default function StudySheet({ onClose }) {
                 >
                   <div className="card-base p-5 text-center mb-4 mt-4">
                     <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3">
-                      {isEnd ? (
-                        <CheckCircle size={24} className="text-accent-dim" />
-                      ) : (
-                        <Sparkles size={24} className="text-accent-dim" />
-                      )}
+                      <Sparkles size={24} className="text-accent-dim" />
                     </div>
-                    <h2 className="font-heading text-lg mb-1.5">
-                      {isEnd ? 'Mostra tu avance' : 'Captura de Platzi'}
-                    </h2>
+                    <h2 className="font-heading text-lg mb-1.5">Captura de Platzi</h2>
                     <p className="text-sm text-muted leading-relaxed">
-                      {isEnd
-                        ? `Subi una captura mostrando hasta donde llegaste en ${activeSession?.start_course || 'tu curso'}`
-                        : 'Subi una captura de pantalla de Platzi mostrando el curso que vas a estudiar'}
+                      Subi una captura de pantalla de Platzi mostrando el curso que vas a estudiar
                     </p>
                   </div>
 
@@ -235,7 +292,7 @@ export default function StudySheet({ onClose }) {
                           className="flex-1 h-12 rounded-2xl bg-accent text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
                         >
                           <Upload size={16} />
-                          {isEnd ? 'Completar sesion' : 'Iniciar estudio'}
+                          Iniciar estudio
                         </button>
                       </div>
                     </motion.div>
@@ -252,8 +309,17 @@ export default function StudySheet({ onClose }) {
                   className="card-base p-8 text-center mt-4"
                 >
                   <div className="w-14 h-14 rounded-full border-2 border-accent/30 border-t-accent animate-spin mx-auto mb-4" />
-                  <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
-                  <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+                  {selectedFile ? (
+                    <>
+                      <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
+                      <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-accent-dim">Cerrando sesion</p>
+                      <p className="text-xs text-muted mt-1">Marcando tu racha del dia...</p>
+                    </>
+                  )}
                 </motion.div>
               )}
 

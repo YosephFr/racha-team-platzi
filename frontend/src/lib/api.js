@@ -89,6 +89,10 @@ export const api = {
     return request('/api/study/complete', { method: 'POST', body: form })
   },
 
+  endStudy() {
+    return request('/api/study/end', { method: 'POST' })
+  },
+
   getWhatsAppStatus() {
     return request('/api/whatsapp/status')
   },

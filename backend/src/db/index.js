@@ -112,6 +112,14 @@ export const queries = {
     )
   },
 
+  endSessionQuick(sessionId) {
+    return db
+      .prepare(
+        `UPDATE study_sessions SET validated = 1, completed_at = datetime('now') WHERE id = ? RETURNING *`
+      )
+      .get(sessionId)
+  },
+
   getActiveSession(userId) {
     return db
       .prepare(
@@ -333,9 +341,7 @@ export const queries = {
   },
 
   getCertificateById(id, userId) {
-    return db
-      .prepare('SELECT * FROM certificates WHERE id = ? AND user_id = ?')
-      .get(id, userId)
+    return db.prepare('SELECT * FROM certificates WHERE id = ? AND user_id = ?').get(id, userId)
   },
 
   deleteCertificate(id, userId) {

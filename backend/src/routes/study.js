@@ -3,8 +3,9 @@ import { unlinkSync } from 'fs'
 import { analyzeImage } from '../ai/provider.js'
 import { runStudyFlow } from '../ai/engine.js'
 import { queries } from '../db/index.js'
-import { getStreakInfo } from '../services/streak.js'
+import { getStreakInfo, calculateStreak, getEffectiveDate } from '../services/streak.js'
 import { processImage } from '../services/image.js'
+import { notifyGroup } from '../whatsapp/notify.js'
 
 export const studyRouter = Router()
 
@@ -209,6 +210,55 @@ Valida si el usuario realmente avanzo. Si es valido, usa validate_study, luego c
   } catch (err) {
     console.error('[study/complete] Error:', err)
     res.status(500).json({ error: err.message })
+  }
+})
+
+studyRouter.post('/end', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'No autenticado' })
+
+  const userId = req.user.userId
+  const activeSession = queries.getActiveSession(userId)
+  if (!activeSession) {
+    return res.status(400).json({ error: 'No hay sesion activa para terminar' })
+  }
+
+  try {
+    const closedSession = queries.endSessionQuick(activeSession.id)
+
+    const streakInfoBefore = getStreakInfo(userId)
+    const effectiveDate = getEffectiveDate()
+    let alreadyCompleted = streakInfoBefore.todayCompleted
+    if (!alreadyCompleted) {
+      queries.markStreak(userId, effectiveDate, activeSession.id)
+    }
+    const currentStreak = calculateStreak(userId)
+
+    let notified = null
+    if (!alreadyCompleted) {
+      const user = queries.getUserById(userId)
+      const name = user?.name || 'Alguien'
+      const courseLabel = activeSession.start_course || 'su curso'
+      const streakLine = currentStreak > 1 ? ` — racha de ${currentStreak} dias` : ''
+      const message = `${name} cerro su sesion en ${courseLabel}${streakLine} 🔥`
+      try {
+        notified = await notifyGroup(message)
+      } catch (err) {
+        console.error('[study/end] notifyGroup failed:', err.message)
+      }
+    }
+
+    console.log(
+      `[study/end] user=${userId} session=${activeSession.id} alreadyCompleted=${alreadyCompleted} streak=${currentStreak}`
+    )
+    res.json({
+      action: 'completed',
+      session: closedSession,
+      streak: { currentStreak, alreadyCompleted, date: effectiveDate },
+      notified,
+    })
+  } catch (err) {
+    console.error('[study/end] Error:', err)
+    res.status(500).json({ error: 'No se pudo cerrar la sesion' })
   }
 })
 
