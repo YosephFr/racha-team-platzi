@@ -36,9 +36,9 @@ Reverse Proxy (SSL termination)
     |
     +-- /api/ ----> Express (backend)
                        |
-                       +-- OpenAI Responses API (agentic tool loop)
-                       +-- OpenAI Chat Completions (GPT-4o vision)
-                       +-- ElevenLabs TTS / Whisper STT
+                       +-- Pluggable chat provider (OpenAI Responses or DeepSeek Chat Completions)
+                       +-- Pluggable vision provider (OpenAI GPT-4o or Google Gemini 2.5)
+                       +-- ElevenLabs TTS / OpenAI Whisper STT
                        +-- SQLite (WAL mode)
                        +-- whatsapp-web.js (Puppeteer)
 ```
@@ -47,7 +47,7 @@ Reverse Proxy (SSL termination)
 
 ### AI-Powered Study Validation
 
-- GPT-4o analyzes uploaded screenshots to extract course name, lesson, class number, progress percentage, instructor, and more
+- The configured vision provider (GPT-4o or Gemini 2.5) analyzes uploaded screenshots to extract course name, lesson, class number, progress percentage, instructor, and more
 - EXIF metadata extraction (device, timestamp, dimensions) for anti-cheat validation
 - Server-side guards reject images that aren't clearly from Platzi — the AI cannot start sessions with empty or invalid data
 - Agentic tool loop with up to 10 iterations - the AI decides which actions to take (start session, validate progress, mark streak, send notification)
@@ -81,8 +81,8 @@ Reverse Proxy (SSL termination)
 
 ### Indi (AI Assistant)
 
-- Personal AI study companion with persistent conversation via OpenAI Conversations API
-- Responds to text, images, and voice messages
+- Personal AI study companion with persistent conversation history. When OpenAI is the chat provider, threads are stored server-side via the OpenAI Conversations API; when DeepSeek is used, history is replayed from the local SQLite `chat_messages` table on each turn
+- Responds to text, images, and voice messages (audio transcription uses OpenAI Whisper)
 - Can start/complete study sessions, check streaks, and send notifications via function tools
 - System heartbeat messages allow automated actions (reminders, alerts) to flow through the AI naturally
 
@@ -92,7 +92,8 @@ Reverse Proxy (SSL termination)
 
 - Node.js 22+
 - A Google OAuth 2.0 client (for authentication)
-- OpenAI API key (GPT-4o + GPT-5.4 Mini)
+- An API key for at least one chat provider (OpenAI or DeepSeek) and one vision provider (OpenAI or Gemini). OpenAI is the default for both, so a single OpenAI key is enough to run the full stack
+- An OpenAI API key is also required for audio transcription (Whisper) regardless of which chat/vision providers are selected
 - A WhatsApp account for notifications (optional)
 
 ### Install
@@ -105,20 +106,21 @@ npm run install:all
 
 ### Configure
 
-Copy the environment template and fill in your values:
+Copy the environment templates and fill in your values:
 
 ```bash
-cp .env.example backend/.env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
 ```
 
-Required variables:
+Required variables (in `backend/.env`):
 
-| Variable               | Description                                                               |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `JWT_SECRET`           | Random secret for signing JWTs (required, backend won't start without it) |
-| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                                                    |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret                                                |
-| `OPENAI_API_KEY`       | For vision analysis and conversational AI                                 |
+| Variable               | Description                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`           | Random secret for signing JWTs (required, backend won't start without it). Generate with `openssl rand -hex 32` |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                                                                                   |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret                                                                               |
+| `OPENAI_API_KEY`       | Required when OpenAI is the chat or vision provider (default for both), and always required for Whisper STT |
 
 Optional variables:
 
@@ -171,7 +173,8 @@ npm run format
 | GET             | /api/auth/me              | Yes  | Current user profile                           |
 | POST            | /api/study/submit         | Yes  | Upload photo, AI analysis + session management |
 | POST            | /api/study/start          | Yes  | Start study session with photo                 |
-| POST            | /api/study/complete       | Yes  | Complete study session with photo              |
+| POST            | /api/study/complete       | Yes  | Complete study session with photo + AI validation |
+| POST            | /api/study/end            | Yes  | Close active session without photo or AI (one-tap) |
 | GET             | /api/study/active         | Yes  | Get active study session                       |
 | GET             | /api/study/sessions       | Yes  | Session history                                |
 | GET             | /api/streaks              | Yes  | Streak info + 30-day calendar                  |
@@ -180,19 +183,22 @@ npm run format
 | POST            | /api/chat/transcribe      | Yes  | Audio transcription (Whisper)                  |
 | POST            | /api/tts                  | Yes  | Text-to-speech (ElevenLabs)                    |
 | GET/POST/DELETE | /api/reminders            | Yes  | Manage daily reminders                         |
+| GET/POST/DELETE | /api/certificates         | Yes  | Manage Platzi certificates (upload, list, detail) |
 | GET             | /api/whatsapp/status      | Yes  | WhatsApp connection status                     |
 | GET             | /health                   | No   | Backend health check                           |
+| GET             | /version                  | No   | Frontend build identifier (used by the in-app update checker) |
 
 ## Database
 
-SQLite with WAL mode. 6 tables:
+SQLite with WAL mode. 7 tables:
 
-- **users** - Email, name, avatar, OpenAI conversation_id
+- **users** - Email, name, avatar, optional OpenAI conversation id (only populated when the chat provider is OpenAI)
 - **study_sessions** - Start/end photos, course metadata, EXIF data, validation status
 - **streaks** - Daily completion records per user
-- **chat_conversations** - AI chat threads with OpenAI conversation_id
+- **chat_conversations** - Chat threads. The `openai_conversation_id` column is set only when OpenAI is the chat provider; with DeepSeek, history is reconstructed from `chat_messages` on each turn
 - **chat_messages** - Message history (text, images, audio, tool calls)
 - **reminders** - WhatsApp reminder schedules with timezone
+- **certificates** - Uploaded Platzi certificates with extracted metadata
 
 ## Security
 
