@@ -11,6 +11,7 @@ import ChatTab from '@/components/ChatTab'
 import ProfileTab from '@/components/ProfileTab'
 import StudyTab from '@/components/StudyTab'
 import CertificatesTab from '@/components/CertificatesTab'
+import UpdateBell from '@/components/UpdateBell'
 import { Home, Flame, MessageCircle, User, BookOpen, Award } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -107,9 +108,10 @@ export default function DashboardPage() {
               </span>
             )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
           </div>
+          <UpdateBell variant="sidebar" />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -148,6 +150,10 @@ export default function DashboardPage() {
       </aside>
 
       <div className="flex-1 flex flex-col min-h-dvh lg:ml-60">
+        <div className="lg:hidden fixed top-3 right-3 z-40">
+          <UpdateBell variant="floating" />
+        </div>
+
         <main
           ref={mainRef}
           className="flex-1 overflow-y-auto overflow-x-hidden pb-nav-safe lg:pb-0"
@@ -179,7 +185,12 @@ export default function DashboardPage() {
           )}
 
           {activeTab === 'profile' && (
-            <ProfileTab user={user} streakData={streakData} onLogout={handleLogout} onTabChange={switchTab} />
+            <ProfileTab
+              user={user}
+              streakData={streakData}
+              onLogout={handleLogout}
+              onTabChange={switchTab}
+            />
           )}
         </main>
 

@@ -195,10 +195,39 @@ export default function StudyTab({ onComplete, todayCompleted }) {
     clearPreview()
   }, [])
 
-  const handleFinishStudy = useCallback(() => {
-    setPhase('capture')
+  const handleFinishStudy = useCallback(async () => {
+    if (processing) return
+    setProcessing(true)
+    setAiMessage('')
     clearPreview()
-  }, [])
+
+    try {
+      const data = await api.endStudy()
+      const streak = data.streak?.currentStreak ?? 0
+      const already = data.streak?.alreadyCompleted
+      const courseLabel = activeSession?.start_course || 'tu curso'
+      const message = already
+        ? 'Sesion cerrada. Hoy tu racha ya estaba completa.'
+        : streak > 1
+          ? `Listo. Cerraste ${courseLabel} y completaste tu racha de ${streak} dias.`
+          : `Listo. Cerraste ${courseLabel} y arrancaste tu racha.`
+
+      setActiveSession(null)
+      setAiMessage(message)
+      setResult({ action: 'completed', validated: !already })
+      setPhase('result')
+      if (!already) {
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 3000)
+      }
+    } catch (err) {
+      setAiMessage(err.message || 'No se pudo cerrar la sesion')
+      setResult({ action: 'error' })
+      setPhase('result')
+    } finally {
+      setProcessing(false)
+    }
+  }, [activeSession, processing])
 
   const confettiColors = ['#98ca3f', '#FCD34D', '#8730f5', '#7db32e', '#F97316', '#b8e06a']
   const isEnd = phase === 'capture' && !!activeSession
@@ -242,7 +271,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
           : phase === 'studying'
             ? 'Estudiando...'
             : isEnd
-              ? 'Completar sesion'
+              ? 'Terminar sesion'
               : isExtraSession
                 ? 'Sesion adicional'
                 : 'Iniciar estudio'}
@@ -265,7 +294,7 @@ export default function StudyTab({ onComplete, todayCompleted }) {
           </motion.div>
         )}
 
-        {phase === 'studying' && (
+        {phase === 'studying' && !processing && (
           <motion.div
             key="studying"
             initial={{ opacity: 0, y: 16 }}
@@ -389,8 +418,17 @@ export default function StudyTab({ onComplete, todayCompleted }) {
               </div>
             )}
             <div className="card-base p-6 text-center">
-              <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
-              <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+              {selectedFile ? (
+                <>
+                  <p className="text-sm font-semibold text-accent-dim">Analizando con IA</p>
+                  <p className="text-xs text-muted mt-1">Procesando tu captura de Platzi...</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-accent-dim">Cerrando sesion</p>
+                  <p className="text-xs text-muted mt-1">Marcando tu racha del dia...</p>
+                </>
+              )}
             </div>
           </motion.div>
         )}
